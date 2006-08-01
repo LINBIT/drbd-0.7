@@ -6,6 +6,14 @@ Latest:
  Cumulative changes since last tarball.
  For even more detail, use "svn log" and "svn diff".
 
+0.7.21 (api:79/proto:74)
+-----
+ * Fixed the "syncer stalled" after reconnect symptom.
+ * Fixed the "stalled in WFParams" after reconnect symptom. The cause
+   of this bug was actually a misuse of the data socket.
+ * Allow to set the uplug_watermark to 1, only usefull for very strange
+   cases.
+
 0.7.20 (api:79/proto:74)
 -----
  * The GC comparison code failed to start a resync in case the two

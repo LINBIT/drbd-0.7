@@ -190,6 +190,14 @@ uname -r | grep BOOT ||
 /sbin/depmod -a -F /boot/System.map-%{kernelversion} %{kernelversion} >/dev/null 2>&1 || true
 
 %changelog
+* Tue Aug  1 2006 16:34:22 +0200 Philipp Reisner <phil@linbit.com>
+- drbd (0.7.21-1)
+ * Fixed the "syncer stalled" after reconnect symptom.
+ * Fixed the "stalled in WFParams" after reconnect symptom. The cause
+   of this bug was actually a misuse of the data socket.
+ * Allow to set the uplug_watermark to 1, only usefull for very strange
+   cases.
+
 * Tue Jul  4 2006 15:13:15 +0200 Philipp Reisner <phil@linbit.com>
 - drbd (0.7.20-1)
  * The GC comparison code failed to start a resync in case the two
