@@ -985,7 +985,6 @@ void drbd_rs_cancel_all(drbd_dev* mdev)
 		clear_bit(BME_NO_WRITES,&bm_ext->flags);
 		lc_del(mdev->resync,&bm_ext->lce);
 	}
-	mdev->resync->used=0;
 	atomic_set(&mdev->resync_locked,0);   
 	spin_unlock_irq(&mdev->al_lock);
 	wake_up(&mdev->al_wait);
