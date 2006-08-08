@@ -171,15 +171,15 @@ struct option admopt[] = {
 
 struct adm_cmd cmds[] = {
 /*   name, function, arg,                     show, needs res, verify_ips */
-  { "attach",            adm_attach,  0                  ,1,1,1 },
-  { "detach",            adm_generic_s,"detach"          ,1,1,1 },
+  { "attach",            adm_attach,  0                  ,1,1,0 },
+  { "detach",            adm_generic_s,"detach"          ,1,1,0 },
   { "connect",           adm_connect, 0                  ,1,1,1 },
   { "disconnect",        adm_generic_s,"disconnect"      ,1,1,0 },
   { "up",                adm_up,      0                  ,1,1,1 },
   { "down",              adm_generic_s,"down"            ,1,1,0 },
-  { "primary",           adm_primary, 0                  ,1,1,1 },
-  { "secondary",         adm_generic_s,"secondary"       ,1,1,1 },
-  { "invalidate",        adm_generic_l,"invalidate"      ,1,1,1 },
+  { "primary",           adm_primary, 0                  ,1,1,0 },
+  { "secondary",         adm_generic_s,"secondary"       ,1,1,0 },
+  { "invalidate",        adm_generic_l,"invalidate"      ,1,1,0 },
   { "invalidate_remote", adm_generic_l,"invalidate_remote",1,1,1 },
   { "resize",            adm_resize,  0                  ,1,1,1 },
   { "syncer",            adm_syncer,  0                  ,1,1,1 },
