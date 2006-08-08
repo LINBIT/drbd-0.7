@@ -34,7 +34,7 @@ case "$CMD" in
 	;;
     stop)
 	# exec, so the exit code of drbdadm propagates
-	exec $DRBDADM secondary $RES
+	! test -e /proc/drbd || exec $DRBDADM secondary $RES
 	;;
     status)
 	if [ "$RES" = "all" ]; then
