@@ -49,7 +49,9 @@
 #include <linux/mm_inline.h>
 #endif
 #include <linux/slab.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 #include <linux/devfs_fs_kernel.h>
+#endif
 
 #define __KERNEL_SYSCALLS__
 #include <linux/unistd.h>
@@ -144,9 +146,10 @@ int minor_count = 8;
 #endif
 int disable_bd_claim = 0;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 // devfs name
 char* drbd_devfs_name = "drbd";
-
+#endif
 
 // global panic flag
 volatile int drbd_did_panic = 0;
@@ -1695,7 +1698,9 @@ NOT_IN_26(
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	devfs_unregister(devfs_handle);
 #else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 	devfs_remove(drbd_devfs_name);
+#endif
 #endif
 
 	if (unregister_blkdev(MAJOR_NR, DEVICE_NAME) != 0)
@@ -1769,7 +1774,9 @@ int __init drbd_init(void)
 		return err;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 	drbd_devfs_name = (major_nr == NBD_MAJOR) ? "nbd" : "drbd";
+#endif
 
 	/*
 	 * allocate all necessary structs
@@ -1791,7 +1798,9 @@ int __init drbd_init(void)
 	if (unlikely(!drbd_blocksizes)) goto Enomem;
 #else
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 	devfs_mk_dir(drbd_devfs_name);
+#endif
 
 	for (i = 0; i < minor_count; i++) {
 		drbd_dev    *mdev = drbd_conf + i;
@@ -1814,7 +1823,9 @@ int __init drbd_init(void)
 		disk->first_minor = i;
 		disk->fops = &drbd_ops;
 		sprintf(disk->disk_name, DEVICE_NAME "%d", i);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 		sprintf(disk->devfs_name, "%s/%d", drbd_devfs_name, i);
+#endif
 		disk->private_data = mdev;
 		add_disk(disk);
 
