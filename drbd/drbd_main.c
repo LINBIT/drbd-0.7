@@ -49,7 +49,7 @@
 #include <linux/mm_inline.h>
 #endif
 #include <linux/slab.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#ifndef NO_MORE_DEV_FS
 #include <linux/devfs_fs_kernel.h>
 #endif
 
@@ -146,7 +146,7 @@ int minor_count = 8;
 #endif
 int disable_bd_claim = 0;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#ifndef NO_MORE_DEV_FS
 // devfs name
 char* drbd_devfs_name = "drbd";
 #endif
@@ -1698,7 +1698,7 @@ NOT_IN_26(
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	devfs_unregister(devfs_handle);
 #else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#ifndef NO_MORE_DEV_FS
 	devfs_remove(drbd_devfs_name);
 #endif
 #endif
@@ -1774,7 +1774,7 @@ int __init drbd_init(void)
 		return err;
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#ifndef NO_MORE_DEV_FS
 	drbd_devfs_name = (major_nr == NBD_MAJOR) ? "nbd" : "drbd";
 #endif
 
@@ -1798,7 +1798,7 @@ int __init drbd_init(void)
 	if (unlikely(!drbd_blocksizes)) goto Enomem;
 #else
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#ifndef NO_MORE_DEV_FS
 	devfs_mk_dir(drbd_devfs_name);
 #endif
 
@@ -1823,7 +1823,7 @@ int __init drbd_init(void)
 		disk->first_minor = i;
 		disk->fops = &drbd_ops;
 		sprintf(disk->disk_name, DEVICE_NAME "%d", i);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#ifndef NO_MORE_DEV_FS
 		sprintf(disk->devfs_name, "%s/%d", drbd_devfs_name, i);
 #endif
 		disk->private_data = mdev;

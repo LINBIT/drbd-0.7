@@ -73,7 +73,7 @@ extern int disable_bd_claim;
 extern int major_nr;
 extern int use_nbd_major;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#ifndef NO_MORE_DEV_FS
 // use_nbd_major ? "nbd" : "drbd";
 extern char* drbd_devfs_name;
 #endif

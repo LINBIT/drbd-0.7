@@ -69,4 +69,6 @@ extern const char * drbd_buildtag(void);
 // but more recent kernels define it in arch/um/include/mem.h
 #define HAVE_UML_TO_VIRT
 
+#define NO_MORE_DEV_FS
+
 #endif

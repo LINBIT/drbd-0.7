@@ -80,6 +80,7 @@ if grep_q "^PATCHLEVEL *= *4" $KDIR/Makefile ; then
   else
     have_mm_inline_h=0
   fi
+    no_more_dev_fs=0
 else
     # 2.6. kernel. just leave it alone...
     need_sighand_hack=0
@@ -87,6 +88,7 @@ else
     need_RH_2_4_18_hack=0
     have_find_next_bit=0
     have_mm_inline_h=0
+    no_more_dev_fs=1
 fi
 
 test -e ./linux/drbd_config.h.orig || cp ./linux/drbd_config.h{,.orig}
@@ -101,7 +103,9 @@ perl -pe "
  s{.*(#define HAVE_FIND_NEXT_BIT.*)}
   { ( $have_find_next_bit ? '' : '//' ) . \$1}e;
  s{.*(#define HAVE_MM_INLINE_H.*)}
-  { ( $have_mm_inline_h ? '' : '//' ) . \$1}e;" \
+  { ( $have_mm_inline_h ? '' : '//' ) . \$1}e;
+ s{.*(#define NO_MORE_DEV_FS.*)}
+  { ( $no_more_dev_fs ? '' : '//' ) . \$1}e;" \
 	  < ./linux/drbd_config.h \
 	  > ./linux/drbd_config.h.new
 
