@@ -1181,8 +1181,6 @@ int main(int argc, char** argv)
             "   PRETENDING that I am >>%s<<\n\n",nodeinfo.nodename);
   }
 
-  if(argc == 1) print_usage_and_exit("missing arguments"); // arguments missing.
-
   /* in case drbdadm is called with an absolut or relative pathname
    * look for the drbdsetup binary in the same location,
    * otherwise, just let execvp sort it out... */
@@ -1200,6 +1198,9 @@ int main(int argc, char** argv)
     }
     argv[0] = progname;
   }
+
+  if(argc == 1) print_usage_and_exit("missing arguments"); // arguments missing.
+
   if (drbdsetup == NULL) {
     fprintf(stderr,"could not strdup argv[0].\n");
     exit(E_exec_error);
