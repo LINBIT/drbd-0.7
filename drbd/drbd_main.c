@@ -208,7 +208,7 @@ STATIC void tl_add(drbd_dev *mdev, drbd_request_t * new_item)
 {
 	struct drbd_barrier *b;
 
-	spin_lock_irq(&mdev->tl_lock);
+	spin_lock_irq(&mdev->req_lock);
 
 	b=mdev->newest_barrier;
 
@@ -220,22 +220,7 @@ STATIC void tl_add(drbd_dev *mdev, drbd_request_t * new_item)
 		set_bit(ISSUE_BARRIER,&mdev->flags);
 	}
 
-	spin_unlock_irq(&mdev->tl_lock);
-}
-
-STATIC void tl_cancel(drbd_dev *mdev, drbd_request_t * item)
-{
-	struct drbd_barrier *b;
-
-	spin_lock_irq(&mdev->tl_lock);
-
-	b=item->barrier;
-	b->n_req--;
-
-	list_del(&item->w.list);
-	item->rq_status &= ~RQ_DRBD_IN_TL;
-
-	spin_unlock_irq(&mdev->tl_lock);
+	spin_unlock_irq(&mdev->req_lock);
 }
 
 STATIC unsigned int tl_add_barrier(drbd_dev *mdev)
@@ -256,13 +241,13 @@ STATIC unsigned int tl_add_barrier(drbd_dev *mdev)
 	b->br_number=barrier_nr_issue;
 	b->n_req=0;
 
-	spin_lock_irq(&mdev->tl_lock);
+	spin_lock_irq(&mdev->req_lock);
 
 	bnr = mdev->newest_barrier->br_number;
 	mdev->newest_barrier->next = b;
 	mdev->newest_barrier = b;
 
-	spin_unlock_irq(&mdev->tl_lock);
+	spin_unlock_irq(&mdev->req_lock);
 
 	return bnr;
 }
@@ -271,46 +256,34 @@ void tl_release(drbd_dev *mdev,unsigned int barrier_nr,
 		       unsigned int set_size)
 {
 	struct drbd_barrier *b;
+	struct list_head *le,*tle;
+	drbd_request_t *req;
 
-	spin_lock_irq(&mdev->tl_lock);
+	spin_lock_irq(&mdev->req_lock);
 
 	b = mdev->oldest_barrier;
 	mdev->oldest_barrier = b->next;
 
-	list_del(&b->requests);
-	/* There could be requests on the list waiting for completion
-	   of the write to the local disk, to avoid corruptions of
-	   slab's data structures we have to remove the lists head */
-
-	spin_unlock_irq(&mdev->tl_lock);
+	list_for_each_safe(le,tle,&b->requests) {
+		req = list_entry(le, struct drbd_request,w.list);
+		/* master_bio already completed, but protocol != C,
+		 * so we had it still in the tl. need to list_del
+		 * anyways, there may be local io pending! */
+		list_del(&req->w.list);
+		req->rq_status &= ~RQ_DRBD_IN_TL;
+		if( (req->rq_status & RQ_DRBD_DONE) == RQ_DRBD_DONE ) {
+			D_ASSERT(req->master_bio == NULL);
+			INVALIDATE_MAGIC(req);
+			mempool_free(req,drbd_request_mempool);
+		}
+	}
+	spin_unlock_irq(&mdev->req_lock);
 
 	D_ASSERT(b->br_number == barrier_nr);
 	D_ASSERT(b->n_req == set_size);
 
+	list_del(&b->requests);
 	kfree(b);
-}
-
-/* tl_dependence reports if this sector was present in the current
-   epoch.
-   As side effect it clears also the pointer to the request if it
-   was present in the transfert log. (Since tl_dependence indicates
-   that IO is complete and that drbd_end_req() should not be called
-   in case tl_clear has to be called due to interruption of the
-   communication)
-*/
-/* bool */
-int tl_dependence(drbd_dev *mdev, drbd_request_t * item)
-{
-	unsigned long flags;
-	int r=TRUE;
-
-	spin_lock_irqsave(&mdev->tl_lock,flags);
-
-	r = ( item->barrier == mdev->newest_barrier );
-	list_del(&item->w.list);
-
-	spin_unlock_irqrestore(&mdev->tl_lock,flags);
-	return r;
 }
 
 void tl_clear(drbd_dev *mdev)
@@ -334,32 +307,34 @@ void tl_clear(drbd_dev *mdev)
 	new_first->br_number=4711;
 	new_first->n_req=0;
 
-	spin_lock_irq(&mdev->tl_lock);
+	spin_lock_irq(&mdev->req_lock);
 
 	b=mdev->oldest_barrier;
 	mdev->oldest_barrier = new_first;
 	mdev->newest_barrier = new_first;
 
-	spin_unlock_irq(&mdev->tl_lock);
-
 	inc_ap_pending(mdev); // Since we count the old first as well...
-
 	while ( b ) {
 		list_for_each_safe(le, tle, &b->requests) {
 			r = list_entry(le, struct drbd_request,w.list);
 			// bi_size and bi_sector are modified in bio_endio!
 			sector = drbd_req_get_sector(r);
 			size   = drbd_req_get_size(r);
+
+			r->rq_status &= ~RQ_DRBD_IN_TL;
+			list_del(&r->w.list);
+
 			if( !(r->rq_status & RQ_DRBD_SENT) ) {
 				if(mdev->conf.wire_protocol != DRBD_PROT_A )
 					dec_ap_pending(mdev);
-				drbd_end_req(r,RQ_DRBD_SENT,ERF_NOTLD|1, sector);
-				goto mark;
-			}
-			if(mdev->conf.wire_protocol != DRBD_PROT_C ) {
-			mark:
-				drbd_set_out_of_sync(mdev, sector, size);
-			}
+
+				_drbd_end_req(r,RQ_DRBD_SENT,1, sector);
+			} else if ((r->rq_status & RQ_DRBD_DONE) == RQ_DRBD_DONE) {
+				D_ASSERT(r->master_bio == NULL);
+				INVALIDATE_MAGIC(r);
+				mempool_free(r,drbd_request_mempool);
+			} /* else: local io still pending */
+			drbd_set_out_of_sync(mdev, sector, size);
 		}
 		f=b;
 		b=b->next;
@@ -367,6 +342,8 @@ void tl_clear(drbd_dev *mdev)
 		kfree(f);
 		dec_ap_pending(mdev); // for the barrier
 	}
+	spin_unlock_irq(&mdev->req_lock);
+
 }
 
 /**
@@ -1057,8 +1034,7 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 	   tl_ datastructure (=> We would want to remove it before it
 	   is there!)
 	3. Q: Why can we add it to tl_ even when drbd_send() might fail ?
-	      There could be a tl_cancel() to remove it within the semaphore!
-	   A: If drbd_send fails, we will loose the connection. Then
+	   A: If drbd_send fails, we will lose the connection. Then
 	      tl_cear() will simulate a RQ_DRBD_SEND and set it out of sync
 	      for everything in the data structure.
 	*/
@@ -1090,15 +1066,8 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 				ok = _drbd_send_zc_bio(mdev,drbd_req_private_bio(req));
 			}
 		}
-		if(!ok) tl_cancel(mdev,req);
 	}
-	if (!ok) {
-		drbd_set_out_of_sync(mdev,
-				     drbd_req_get_sector(req),
-				     drbd_req_get_size(req));
-		drbd_end_req(req,RQ_DRBD_SENT,ERF_NOTLD|1,
-			     drbd_req_get_sector(req));
-	}
+	/* if (!ok) ... cleanup done in tl_clear */
 	spin_lock(&mdev->send_task_lock);
 	mdev->send_task=NULL;
 	spin_unlock(&mdev->send_task_lock);
@@ -1378,7 +1347,6 @@ void drbd_init_set_defaults(drbd_dev *mdev)
 	sema_init(&mdev->meta.work.s,0);
 
 	mdev->al_lock        = SPIN_LOCK_UNLOCKED;
-	mdev->tl_lock        = SPIN_LOCK_UNLOCKED;
 	mdev->ee_lock        = SPIN_LOCK_UNLOCKED;
 	mdev->req_lock       = SPIN_LOCK_UNLOCKED;
 	mdev->pr_lock        = SPIN_LOCK_UNLOCKED;

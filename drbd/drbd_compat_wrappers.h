@@ -83,16 +83,6 @@ static inline drbd_dev* drbd_req_get_mdev(struct drbd_request *req)
 	return (drbd_dev*) req->private_bio.b_private;
 }
 
-static inline sector_t drbd_req_get_sector(struct drbd_request *req)
-{
-	return req->private_bio.b_blocknr;
-}
-
-static inline unsigned short drbd_req_get_size(struct drbd_request *req)
-{
-	return req->private_bio.b_size;
-}
-
 static inline drbd_bio_t* drbd_req_private_bio(struct drbd_request *req)
 {
 	return &req->private_bio;
@@ -233,6 +223,8 @@ drbd_req_prepare_write(drbd_dev *mdev, struct drbd_request *req)
 		     |(1 << BH_Mapped) ;
 
 	req->rq_status = RQ_DRBD_NOTHING;
+	req->sector = req->private_bio.b_blocknr;
+	req->size = req->private_bio.b_size;
 }
 
 static inline void
@@ -258,6 +250,8 @@ drbd_req_prepare_read(drbd_dev *mdev, struct drbd_request *req)
 		     |(1 << BH_Mapped) ;
 
 	req->rq_status = RQ_DRBD_NOTHING;
+	req->sector = req->private_bio.b_blocknr;
+	req->size = req->private_bio.b_size;
 }
 
 static inline struct page* drbd_bio_get_page(struct buffer_head *bh)
@@ -395,18 +389,6 @@ static inline void drbd_bio_endio(struct bio *bio, int uptodate)
 static inline drbd_dev* drbd_req_get_mdev(struct drbd_request *req)
 {
 	return (drbd_dev*) req->mdev;
-}
-
-static inline sector_t drbd_req_get_sector(struct drbd_request *req)
-{
-	return req->master_bio->bi_sector;
-}
-
-static inline unsigned short drbd_req_get_size(struct drbd_request *req)
-{
-	drbd_dev* mdev = req->mdev;
-	D_ASSERT(req->master_bio->bi_size);
-	return req->master_bio->bi_size;
 }
 
 static inline drbd_bio_t* drbd_req_private_bio(struct drbd_request *req)
@@ -553,6 +535,8 @@ drbd_req_prepare_write(drbd_dev *mdev, struct drbd_request *req)
 
 	req->rq_status = RQ_DRBD_NOTHING;
 	req->mdev      = mdev;
+	req->sector = req->master_bio->bi_sector;
+	req->size   = req->master_bio->bi_size;	  
 }
 
 static inline void
@@ -568,6 +552,8 @@ drbd_req_prepare_read(drbd_dev *mdev, struct drbd_request *req)
 
 	req->rq_status = RQ_DRBD_NOTHING;
 	req->mdev      = mdev;
+	req->sector = req->master_bio->bi_sector;
+	req->size   = req->master_bio->bi_size;
 }
 
 static inline struct page* drbd_bio_get_page(struct bio *bio)

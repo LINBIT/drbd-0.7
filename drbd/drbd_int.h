@@ -57,6 +57,11 @@ static inline void __list_splice(struct list_head *list,
 	last->next = at;
 	at->prev = last;
 }
+static inline void list_splice(struct list_head *list, struct list_head *head)
+{
+	if (!list_empty(list))
+		__list_splice(list, head);
+}
 static inline void list_splice_init(struct list_head *list,
 				    struct list_head *head)
 {
@@ -613,6 +618,8 @@ struct drbd_request {
 	int rq_status;
 	struct drbd_barrier *barrier; // The next barrier.
 	drbd_bio_t *master_bio;       // master bio pointer
+	unsigned int size;
+	sector_t sector;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	drbd_bio_t private_bio;       // private bio struct
 #else
@@ -766,7 +773,6 @@ struct Drbd_Conf {
 	atomic_t unacked_cnt;    // Need to send replys for
 	atomic_t local_cnt;      // Waiting for local disk to signal completion
 	spinlock_t req_lock;
-	spinlock_t tl_lock;
 	struct drbd_barrier* newest_barrier;
 	struct drbd_barrier* oldest_barrier;
 	unsigned long flags;
@@ -826,7 +832,7 @@ extern void drbd_free_resources(drbd_dev *mdev);
 extern void tl_release(drbd_dev *mdev,unsigned int barrier_nr,
 		       unsigned int set_size);
 extern void tl_clear(drbd_dev *mdev);
-extern int tl_dependence(drbd_dev *mdev, drbd_request_t * item);
+extern int tl_dependence(drbd_dev *mdev, drbd_request_t * item, int free_it);
 extern void drbd_free_sock(drbd_dev *mdev);
 extern int drbd_send(drbd_dev *mdev, struct socket *sock,
 		     void* buf, size_t size, unsigned msg_flags);
@@ -1020,7 +1026,7 @@ extern kmem_cache_t *drbd_ee_cache;
 extern mempool_t *drbd_request_mempool;
 
 // drbd_req
-#define ERF_NOTLD    2   /* do not call tl_dependence */
+extern void _drbd_end_req(drbd_request_t *, int, int, sector_t);
 extern void drbd_end_req(drbd_request_t *, int, int, sector_t);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 extern int drbd_make_request_24(request_queue_t *q, int rw, struct buffer_head *bio);
@@ -1223,6 +1229,16 @@ static inline sector_t drbd_md_ss(drbd_dev *mdev)
 	} else {
 		return 2 * MD_RESERVED_SIZE * mdev->md_index;
 	}
+}
+
+static inline sector_t drbd_req_get_sector(struct drbd_request *req)
+{
+	return req->sector;
+}
+
+static inline unsigned short drbd_req_get_size(struct drbd_request *req)
+{
+	return req->size;
 }
 
 static inline void

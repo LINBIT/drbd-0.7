@@ -32,21 +32,11 @@
 #include <linux/drbd.h>
 #include "drbd_int.h"
 
-void drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
+void _drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
 		  sector_t rsector)
 {
-	/* This callback will be called in irq context by the IDE drivers,
-	   and in Softirqs/Tasklets/BH context by the SCSI drivers.
-	   This function is called by the receiver in kernel-thread context.
-	   Try to get the locking right :) */
-
 	struct Drbd_Conf* mdev = drbd_req_get_mdev(req);
-	unsigned long flags=0;
 	int uptodate;
-
-	PARANOIA_BUG_ON(!IS_VALID_MDEV(mdev));
-	PARANOIA_BUG_ON(drbd_req_get_sector(req) != rsector);
-	spin_lock_irqsave(&mdev->req_lock,flags);
 
 	if(req->rq_status & nextstate) {
 		ERR("request state error(%d)\n", req->rq_status);
@@ -54,30 +44,16 @@ void drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
 
 	req->rq_status |= nextstate;
 	req->rq_status &= er_flags | ~0x0001;
-	if( (req->rq_status & RQ_DRBD_DONE) == RQ_DRBD_DONE ) goto end_it;
+	if( (req->rq_status & RQ_DRBD_DONE) != RQ_DRBD_DONE )
+		return;
 
-	spin_unlock_irqrestore(&mdev->req_lock,flags);
+	/* complete the master bio now. */
 
-	return;
-
-/* We only report uptodate == TRUE if both operations (WRITE && SEND)
-   reported uptodate == TRUE
- */
-
-	end_it:
-	spin_unlock_irqrestore(&mdev->req_lock,flags);
-
-	if( req->rq_status & RQ_DRBD_IN_TL ) {
-		if( ! ( er_flags & ERF_NOTLD ) ) {
-			/*If this call is from tl_clear() we may not call 
-			  tl_dependene, otherwhise we have a homegrown 
-			  spinlock deadlock.   */
-			if(tl_dependence(mdev,req))
-				set_bit(ISSUE_BARRIER,&mdev->flags);
-		} else {
-			list_del(&req->w.list); // we have the tl_lock...
-		}
-	}
+	/* if this sector was present in the current epoch, close it.
+	 * FIXME compares reusable pointer addresses,
+	 * possibly artificially reducing epoch size */
+	if (req->barrier == mdev->newest_barrier)
+		set_bit(ISSUE_BARRIER,&mdev->flags);
 
 	uptodate = req->rq_status & 0x0001;
 	if( !uptodate && mdev->on_io_error == Detach) {
@@ -92,27 +68,46 @@ void drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
 // FIXME proto A and diskless :)
 
 		req->w.cb = w_io_error;
-		drbd_queue_work(mdev,&mdev->data.work,&req->w);
+		_drbd_queue_work(&mdev->data.work,&req->w);
 
 		goto out;
 
 	}
 
 	drbd_bio_endio(req->master_bio,uptodate);
+	req->master_bio = NULL;
 	dec_ap_bio(mdev);
 
-	INVALIDATE_MAGIC(req);
-	mempool_free(req,drbd_request_mempool);
+	/* free the request,
+	 * if it is not/no longer in the transfer log, because
+	 *  it was local only (not connected), or
+	 *  this is protocol C, or
+	 *  the corresponding barrier ack has been received already, or
+	 *  it has been cleared from the transfer log (after connection loss)
+	 */
+	if (!(req->rq_status & RQ_DRBD_IN_TL)) {
+		INVALIDATE_MAGIC(req);
+		mempool_free(req,drbd_request_mempool);
+	}
 
  out:
 	if (test_bit(ISSUE_BARRIER,&mdev->flags)) {
-		spin_lock_irqsave(&mdev->req_lock,flags);
 		if(list_empty(&mdev->barrier_work.list)) {
 			_drbd_queue_work(&mdev->data.work,&mdev->barrier_work);
 		}
-		spin_unlock_irqrestore(&mdev->req_lock,flags);
 	}
 }
+
+void drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
+		  sector_t rsector)
+{
+	struct Drbd_Conf* mdev = drbd_req_get_mdev(req);
+	unsigned long flags=0;
+	spin_lock_irqsave(&mdev->req_lock,flags);
+	_drbd_end_req(req,nextstate,er_flags,rsector);
+	spin_unlock_irqrestore(&mdev->req_lock,flags);
+}
+
 
 int drbd_read_remote(drbd_dev *mdev, drbd_request_t *req)
 {
