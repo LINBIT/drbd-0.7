@@ -325,9 +325,6 @@ void tl_clear(drbd_dev *mdev)
 			list_del(&r->w.list);
 
 			if( !(r->rq_status & RQ_DRBD_SENT) ) {
-				if(mdev->conf.wire_protocol != DRBD_PROT_A )
-					dec_ap_pending(mdev);
-
 				_drbd_end_req(r,RQ_DRBD_SENT,1, sector);
 			} else if ((r->rq_status & RQ_DRBD_DONE) == RQ_DRBD_DONE) {
 				D_ASSERT(r->master_bio == NULL);
@@ -343,7 +340,6 @@ void tl_clear(drbd_dev *mdev)
 		dec_ap_pending(mdev); // for the barrier
 	}
 	spin_unlock_irq(&mdev->req_lock);
-
 }
 
 /**
@@ -793,14 +789,12 @@ int _drbd_send_barrier(drbd_dev *mdev)
 	int ok;
 	Drbd_Barrier_Packet p;
 
-	/* printk(KERN_DEBUG DEVICE_NAME": issuing a barrier\n"); */
 	/* tl_add_barrier() must be called with the sock_mutex aquired */
 	p.barrier=tl_add_barrier(mdev);
 
 	inc_ap_pending(mdev);
 	ok = _drbd_send_cmd(mdev,mdev->data.socket,Barrier,(Drbd_Header*)&p,sizeof(p),0);
 
-//	if (!ok) dec_ap_pending(mdev); // is done in tl_clear()
 	return ok;
 }
 
@@ -1054,8 +1048,9 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 
 	if(test_and_clear_bit(ISSUE_BARRIER,&mdev->flags))
 		ok = _drbd_send_barrier(mdev);
+
+	tl_add(mdev,req);
 	if(ok) {
-		tl_add(mdev,req);
 		dump_packet(mdev,mdev->data.socket,0,(void*)&p, __FILE__, __LINE__);
 		set_bit(UNPLUG_REMOTE,&mdev->flags);
 		ok = sizeof(p) == drbd_send(mdev,mdev->data.socket,&p,sizeof(p),MSG_MORE);

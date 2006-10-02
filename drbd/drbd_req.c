@@ -42,6 +42,8 @@ void _drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
 		ERR("request state error(%d)\n", req->rq_status);
 	}
 
+	if (nextstate == RQ_DRBD_SENT) dec_ap_pending(mdev);
+
 	req->rq_status |= nextstate;
 	req->rq_status &= er_flags | ~0x0001;
 	if( (req->rq_status & RQ_DRBD_DONE) != RQ_DRBD_DONE )
@@ -62,6 +64,7 @@ void _drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
 		// the other side!  See w_io_error()
 
 		drbd_bio_endio(req->master_bio,1);
+		req->master_bio = NULL;
 		dec_ap_bio(mdev);
 		// The assumption is that we wrote it on the peer.
 
@@ -326,10 +329,8 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 			if (!drbd_send_dblock(mdev,req)) {
 				if (mdev->cstate >= Connected)
 					set_cstate(mdev,NetworkFailure);
-				dec_ap_pending(mdev);
 				drbd_thread_restart_nowait(&mdev->receiver);
 			} else if(mdev->conf.wire_protocol == DRBD_PROT_A) {
-				dec_ap_pending(mdev);
 				drbd_end_req(req, RQ_DRBD_SENT, 1, sector);
 			}
 		} else {

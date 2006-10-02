@@ -2170,7 +2170,6 @@ STATIC int got_BlockAck(drbd_dev *mdev, Drbd_Header* h)
 		dec_rs_pending(mdev);
 	} else {
 		D_ASSERT(mdev->conf.wire_protocol != DRBD_PROT_A);
-		dec_ap_pending(mdev);
 	}
 	return TRUE;
 }

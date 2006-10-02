@@ -219,11 +219,11 @@ typedef struct Drbd_Conf drbd_dev;
 
 #ifdef DBG_ASSERTS
 extern void drbd_assert_breakpoint(drbd_dev*, char *, char *, int );
-# define D_ASSERT(exp)  if (!(exp)) \
-	 drbd_assert_breakpoint(mdev,#exp,__FILE__,__LINE__)
+# define D_ASSERT(exp)  do { if (!(exp)) \
+	 drbd_assert_breakpoint(mdev,#exp,__FILE__,__LINE__); } while (0)
 #else
-# define D_ASSERT(exp)  if (!(exp)) \
-	 ERR("ASSERT( " #exp " ) in %s:%d\n", __FILE__,__LINE__)
+# define D_ASSERT(exp)  do { if (!(exp)) \
+	 ERR("ASSERT( " #exp " ) in %s:%d\n", __FILE__,__LINE__); } while (0) 
 #endif
 #define ERR_IF(exp) if (({ \
 	int _b = (exp)!=0; \
@@ -1334,21 +1334,21 @@ static inline void inc_ap_pending(drbd_dev* mdev)
 		    __func__ , __LINE__ ,			\
 		    atomic_read(&mdev->which))
 
-#define dec_ap_pending(mdev)					\
+#define dec_ap_pending(mdev) do {				\
 	typecheck(drbd_dev*,mdev);				\
 	if(atomic_dec_and_test(&mdev->ap_pending_cnt))		\
 		wake_up(&mdev->cstate_wait);			\
-	ERR_IF_CNT_IS_NEGATIVE(ap_pending_cnt)
+	ERR_IF_CNT_IS_NEGATIVE(ap_pending_cnt); } while (0)
 
 static inline void inc_rs_pending(drbd_dev* mdev)
 {
 	atomic_inc(&mdev->rs_pending_cnt);
 }
 
-#define dec_rs_pending(mdev)					\
+#define dec_rs_pending(mdev) do {				\
 	typecheck(drbd_dev*,mdev);				\
 	atomic_dec(&mdev->rs_pending_cnt);			\
-	ERR_IF_CNT_IS_NEGATIVE(rs_pending_cnt)
+	ERR_IF_CNT_IS_NEGATIVE(rs_pending_cnt); } while (0)
 
 static inline void inc_unacked(drbd_dev* mdev)
 {
@@ -1394,15 +1394,15 @@ static inline void drbd_push_msock(drbd_dev* mdev)
 		drbd_push_msock(mdev);				\
 	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt);
 #else
-#define dec_unacked(mdev)					\
+#define dec_unacked(mdev) do {					\
 	typecheck(drbd_dev*,mdev);				\
 	atomic_dec(&mdev->unacked_cnt);				\
-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt)
+	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt); } while (0)
 
-#define sub_unacked(mdev, n)					\
+#define sub_unacked(mdev, n) do {				\
 	typecheck(drbd_dev*,mdev);				\
 	atomic_sub(n, &mdev->unacked_cnt);			\
-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt)
+	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt); } while (0)
 #endif
 
 
