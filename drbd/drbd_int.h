@@ -1355,45 +1355,6 @@ static inline void inc_unacked(drbd_dev* mdev)
 	atomic_inc(&mdev->unacked_cnt);
 }
 
-#if 0 && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-/*
- * idea was to forcefully push the tcp stack whenever the
- * currently last pending packet is in the buffer.
- * should be benchmarked on some real box to see if it has any
- * effect on overall latency.
- */
-
-/* this only works with 2.6 kernels because of some conflicting defines
- * in header files included from net.tcp.h.
- */
-
-#include <net/tcp.h>
-static inline void drbd_push_msock(drbd_dev* mdev)
-{
-	struct sock    *sk;
-	struct tcp_opt *tp;
-	if (mdev->meta.socket == NULL) return;
-	sk = mdev->meta.socket->sk;
-	tp = tcp_sk(sk);
-	lock_sock(sk);
-	__tcp_push_pending_frames(sk, tp, tcp_current_mss(sk, 1), TCP_NAGLE_PUSH);
-	release_sock(sk);
-}
-
-#define dec_unacked(mdev)					\
-	might_sleep();						\
-	typecheck(drbd_dev*,mdev);				\
-	if (atomic_dec_and_test(&mdev->unacked_cnt))		\
-		drbd_push_msock(mdev);				\
-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt);
-
-#define sub_unacked(mdev, n)					\
-	might_sleep();						\
-	typecheck(drbd_dev*,mdev);				\
-	if (atomic_sub_and_test(n, &mdev->unacked_cnt))		\
-		drbd_push_msock(mdev);				\
-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt);
-#else
 #define dec_unacked(mdev) do {					\
 	typecheck(drbd_dev*,mdev);				\
 	atomic_dec(&mdev->unacked_cnt);				\
@@ -1403,7 +1364,6 @@ static inline void drbd_push_msock(drbd_dev* mdev)
 	typecheck(drbd_dev*,mdev);				\
 	atomic_sub(n, &mdev->unacked_cnt);			\
 	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt); } while (0)
-#endif
 
 
 /**
