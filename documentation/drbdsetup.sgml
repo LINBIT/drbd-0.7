@@ -358,7 +358,9 @@
 	      To ensure smooth operation of the application on top of DRBD,
 	      it is possible to limit the bandwidth which may be used by
 	      background synchronizations. The default is 250 KB/sec, the
-	      default unit is KB/sec.  
+	      default unit is KB/sec.
+	      Note that this is <emphasis>byte</emphasis> (octet) per second,
+	      not bit.  We are storage guys.
 	    </para>
 	  </listitem>
 	</varlistentry>
