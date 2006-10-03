@@ -1053,6 +1053,7 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 		 * FIXME won't work for freeze io.
 		 * FIXME if we are Diskless, we complete a WRITE
 		 * as successful here, that has never been written! */
+		drbd_set_out_of_sync(mdev, req->sector, req->size);
 		drbd_end_req(req,RQ_DRBD_SENT,1);
 		goto out;
 	}
