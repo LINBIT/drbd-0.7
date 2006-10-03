@@ -1045,7 +1045,7 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 	/* drbd_disconnect may have freed that socket while we were waiting
 	 * in down(). we have to check that, to avoid a race with tl_clear
 	 * cleaning up before we can tl_add */
-	if (unlikely(mdev->data.socket)) {
+	if (unlikely(!mdev->data.socket)) {
 		/* this req is not in the tl, tl_clear cannot find it.
 		 * we cannot just tl_add it here, either, because tl_clear
 		 * might be done already.  so we have to mark this request
