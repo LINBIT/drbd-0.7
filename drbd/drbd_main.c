@@ -538,10 +538,15 @@ void _drbd_thread_stop(struct Drbd_thread *thi, int restart,int wait)
 
 	spin_lock(&thi->t_lock);
 
-	/* INFO("%s [%d]: %s %d -> %d; %d\n",
+	/*
+	INFO("%s [%d]: %s[%s] %d -> %d; wait:%d; x->done:%d\n",
 	     current->comm, current->pid,
-	     thi->task ? thi->task->comm : "NULL", thi->t_state, ns, wait); */
-
+	     thi == &mdev->worker ? "worker" :
+	     thi == &mdev->asender ? "asender" :
+	     thi == &mdev->receiver ? "receiver" : "???",
+	     thi->task ? thi->task->comm : "NULL", thi->t_state, ns, wait,
+	     thi->startstop.done);
+	*/
 
 	if (thi->t_state == None) {
 		spin_unlock(&thi->t_lock);

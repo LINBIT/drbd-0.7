@@ -1203,7 +1203,6 @@ STATIC int receive_DataRequest(drbd_dev *mdev,Drbd_Header *h)
 		return FALSE;
 	}
 	e->block_id = p->block_id; // no meaning on this side, pr* on partner
-	list_add(&e->w.list,&mdev->read_ee);
 	spin_unlock_irq(&mdev->ee_lock);
 
 	if(!inc_local(mdev) || (mdev->gen_cnt[Flags] & MDF_Consistent) == 0) {
@@ -1245,6 +1244,9 @@ STATIC int receive_DataRequest(drbd_dev *mdev,Drbd_Header *h)
 
 	mdev->read_cnt += size >> 9;
 	inc_unacked(mdev);
+	spin_lock_irq(&mdev->ee_lock);
+	list_add(&e->w.list,&mdev->read_ee);
+	spin_unlock_irq(&mdev->ee_lock);
 	drbd_generic_make_request(READ,&e->private_bio);
 	if (atomic_read(&mdev->local_cnt) >= (mdev->conf.max_epoch_size>>4) ) {
 		drbd_kick_lo(mdev);
