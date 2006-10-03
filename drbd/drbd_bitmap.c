@@ -813,6 +813,7 @@ int drbd_bm_rs_done(drbd_dev *mdev)
 int drbd_bm_set_bit(drbd_dev *mdev, const unsigned long bitnr)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
+	unsigned long flags;
 	int i;
 	ERR_IF(!b) return 1;
 	ERR_IF(!b->bm) return 1;
@@ -828,7 +829,7 @@ int drbd_bm_set_bit(drbd_dev *mdev, const unsigned long bitnr)
 		ERR("%s in drbd_bm_set_bit\n", cstate_to_name(mdev->cstate));
 */
 
-	spin_lock_irq(&b->bm_lock);
+	spin_lock_irqsave(&b->bm_lock,flags);
 	BM_PARANOIA_CHECK();
 	MUST_NOT_BE_LOCKED();
 	ERR_IF (bitnr >= b->bm_bits) {
@@ -838,7 +839,7 @@ int drbd_bm_set_bit(drbd_dev *mdev, const unsigned long bitnr)
 		i = (0 != __test_and_set_bit(bitnr, b->bm));
 		b->bm_set += !i;
 	}
-	spin_unlock_irq(&b->bm_lock);
+	spin_unlock_irqrestore(&b->bm_lock,flags);
 	return i;
 }
 
