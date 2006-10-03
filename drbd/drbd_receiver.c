@@ -924,7 +924,7 @@ STATIC int recv_dless_read(drbd_dev *mdev, drbd_request_t *req,
 
 	bio = req->master_bio;
 
-	D_ASSERT( sector == drbd_req_get_sector(req) );
+	D_ASSERT( sector == req->sector );
 
 	rr=drbd_recv(mdev,drbd_bio_kmap(bio),data_size);
 	drbd_bio_kunmap(bio);
@@ -2157,7 +2157,7 @@ STATIC int got_BlockAck(drbd_dev *mdev, Drbd_Header* h)
 				req->rq_status &= ~RQ_DRBD_IN_TL;
 				list_del(&req->w.list);
 			}
-			_drbd_end_req(req, RQ_DRBD_SENT, 1, sector);
+			_drbd_end_req(req, RQ_DRBD_SENT, 1);
 			spin_unlock_irq(&mdev->req_lock);
 
 			if (test_bit(SYNC_STARTED,&mdev->flags) &&

@@ -1026,8 +1026,8 @@ extern kmem_cache_t *drbd_ee_cache;
 extern mempool_t *drbd_request_mempool;
 
 // drbd_req
-extern void _drbd_end_req(drbd_request_t *, int, int, sector_t);
-extern void drbd_end_req(drbd_request_t *, int, int, sector_t);
+extern void _drbd_end_req(drbd_request_t *, int, int);
+extern void drbd_end_req(drbd_request_t *, int, int);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 extern int drbd_make_request_24(request_queue_t *q, int rw, struct buffer_head *bio);
 #else
@@ -1229,16 +1229,6 @@ static inline sector_t drbd_md_ss(drbd_dev *mdev)
 	} else {
 		return 2 * MD_RESERVED_SIZE * mdev->md_index;
 	}
-}
-
-static inline sector_t drbd_req_get_sector(struct drbd_request *req)
-{
-	return req->sector;
-}
-
-static inline unsigned short drbd_req_get_size(struct drbd_request *req)
-{
-	return req->size;
 }
 
 static inline void

@@ -317,15 +317,15 @@ void tl_clear(drbd_dev *mdev)
 	while ( b ) {
 		list_for_each_safe(le, tle, &b->requests) {
 			r = list_entry(le, struct drbd_request,w.list);
-			// bi_size and bi_sector are modified in bio_endio!
-			sector = drbd_req_get_sector(r);
-			size   = drbd_req_get_size(r);
+			// r may be freed within drbd_end_req
+			sector = r->sector;
+			size   = r->size;
 
 			r->rq_status &= ~RQ_DRBD_IN_TL;
 			list_del(&r->w.list);
 
 			if( !(r->rq_status & RQ_DRBD_SENT) ) {
-				_drbd_end_req(r,RQ_DRBD_SENT,1, sector);
+				_drbd_end_req(r,RQ_DRBD_SENT,1);
 			} else if ((r->rq_status & RQ_DRBD_DONE) == RQ_DRBD_DONE) {
 				D_ASSERT(r->master_bio == NULL);
 				INVALIDATE_MAGIC(r);
@@ -1013,10 +1013,9 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 
 	p.head.magic   = BE_DRBD_MAGIC;
 	p.head.command = cpu_to_be16(Data);
-	p.head.length  = cpu_to_be16( sizeof(p)-sizeof(Drbd_Header)
-				     + drbd_req_get_size(req) );
+	p.head.length  = cpu_to_be16(sizeof(p)-sizeof(Drbd_Header)+req->size);
 
-	p.sector   = cpu_to_be64(drbd_req_get_sector(req));
+	p.sector   = cpu_to_be64(req->sector);
 	p.block_id = (unsigned long)req;
 
 	/* About tl_add():
@@ -1042,6 +1041,22 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 
 	old_blocked = drbd_block_all_signals();
 	down(&mdev->data.mutex);
+
+	/* drbd_disconnect may have freed that socket while we were waiting
+	 * in down(). we have to check that, to avoid a race with tl_clear
+	 * cleaning up before we can tl_add */
+	if (unlikely(mdev->data.socket)) {
+		/* this req is not in the tl, tl_clear cannot find it.
+		 * we cannot just tl_add it here, either, because tl_clear
+		 * might be done already.  so we have to mark this request
+		 * "SENT" here, otherwise it won't ever complete.
+		 * FIXME won't work for freeze io.
+		 * FIXME if we are Diskless, we complete a WRITE
+		 * as successful here, that has never been written! */
+		drbd_end_req(req,RQ_DRBD_SENT,1);
+		goto out;
+	}
+
 	spin_lock(&mdev->send_task_lock);
 	mdev->send_task=current;
 	spin_unlock(&mdev->send_task_lock);
@@ -1049,6 +1064,7 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 	if(test_and_clear_bit(ISSUE_BARRIER,&mdev->flags))
 		ok = _drbd_send_barrier(mdev);
 
+	/* unconditional tl_add! */
 	tl_add(mdev,req);
 	if(ok) {
 		dump_packet(mdev,mdev->data.socket,0,(void*)&p, __FILE__, __LINE__);
@@ -1057,6 +1073,9 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 		if(ok) {
 			if(mdev->conf.wire_protocol == DRBD_PROT_A) {
 				ok = _drbd_send_bio(mdev,drbd_req_private_bio(req));
+				/* drbd_end_req has to be within the data.mutex,
+				 * which protects us from a concurrently running tl_clear */
+				if (ok) drbd_end_req(req,RQ_DRBD_SENT,1);
 			} else {
 				ok = _drbd_send_zc_bio(mdev,drbd_req_private_bio(req));
 			}
@@ -1067,6 +1086,7 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 	mdev->send_task=NULL;
 	spin_unlock(&mdev->send_task_lock);
 
+  out:
 	up(&mdev->data.mutex);
 	restore_old_sigset(old_blocked);
 	return ok;

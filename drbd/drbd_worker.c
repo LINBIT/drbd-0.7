@@ -139,6 +139,7 @@ void drbd_dio_end(struct buffer_head *bh, int uptodate)
 {
 	struct Drbd_Conf* mdev;
 	drbd_request_t *req;
+	sector_t rsector;
 
 	mdev = bh->b_private;
 	PARANOIA_BUG_ON(!IS_VALID_MDEV(mdev));
@@ -147,8 +148,10 @@ void drbd_dio_end(struct buffer_head *bh, int uptodate)
 	PARANOIA_BUG_ON(!VALID_POINTER(req));
 
 	drbd_chk_io_error(mdev,!uptodate);
-	drbd_end_req(req, RQ_DRBD_LOCAL, uptodate, drbd_req_get_sector(req));
-	drbd_al_complete_io(mdev,drbd_req_get_sector(req));
+        // req may get freed within drbd_end_req
+	rsector = drbd_req_get_sector(req);
+	drbd_end_req(req, RQ_DRBD_LOCAL, uptodate, rsector);
+	drbd_al_complete_io(mdev,rsector);
 	dec_local(mdev);
 }
 
@@ -284,9 +287,9 @@ int drbd_dio_end(struct bio *bio, unsigned int bytes_done, int error)
 		return 1;
 
 	drbd_chk_io_error(mdev,error);
-	rsector = drbd_req_get_sector(req);
-        // the bi_sector of the bio gets modified somewhere in drbd_end_req()!
-	drbd_end_req(req, RQ_DRBD_LOCAL, (error == 0), rsector);
+        // req may get freed within drbd_end_req
+	rsector = req->sector;
+	drbd_end_req(req, RQ_DRBD_LOCAL, (error == 0));
 	drbd_al_complete_io(mdev,rsector);
 	dec_local(mdev);
 	bio_put(bio);

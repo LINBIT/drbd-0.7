@@ -32,10 +32,10 @@
 #include <linux/drbd.h>
 #include "drbd_int.h"
 
-void _drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
-		  sector_t rsector)
+void _drbd_end_req(drbd_request_t *req, int nextstate, int er_flags)
 {
 	struct Drbd_Conf* mdev = drbd_req_get_mdev(req);
+	sector_t rsector = req->sector;
 	int uptodate;
 
 	if(req->rq_status & nextstate) {
@@ -59,7 +59,7 @@ void _drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
 
 	uptodate = req->rq_status & 0x0001;
 	if( !uptodate && mdev->on_io_error == Detach) {
-		drbd_set_out_of_sync(mdev,rsector, drbd_req_get_size(req));
+		drbd_set_out_of_sync(mdev,rsector, req->size);
 		// It should also be as out of sync on
 		// the other side!  See w_io_error()
 
@@ -101,13 +101,12 @@ void _drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
 	}
 }
 
-void drbd_end_req(drbd_request_t *req, int nextstate, int er_flags,
-		  sector_t rsector)
+void drbd_end_req(drbd_request_t *req, int nextstate, int er_flags)
 {
 	struct Drbd_Conf* mdev = drbd_req_get_mdev(req);
 	unsigned long flags=0;
 	spin_lock_irqsave(&mdev->req_lock,flags);
-	_drbd_end_req(req,nextstate,er_flags,rsector);
+	_drbd_end_req(req,nextstate,er_flags);
 	spin_unlock_irqrestore(&mdev->req_lock,flags);
 }
 
@@ -330,8 +329,6 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 				if (mdev->cstate >= Connected)
 					set_cstate(mdev,NetworkFailure);
 				drbd_thread_restart_nowait(&mdev->receiver);
-			} else if(mdev->conf.wire_protocol == DRBD_PROT_A) {
-				drbd_end_req(req, RQ_DRBD_SENT, 1, sector);
 			}
 		} else {
 			// this node is diskless ...
