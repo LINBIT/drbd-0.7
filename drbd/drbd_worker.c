@@ -937,7 +937,7 @@ int drbd_worker(struct Drbd_thread *thi)
 
 	sprintf(current->comm, "drbd%d_worker", (int)(mdev-drbd_conf));
 
-	for (;;) {
+	while (get_t_state(thi) == Running) {
 		intr = down_interruptible(&mdev->data.work.s);
 
 		if (unlikely(drbd_did_panic == DRBD_MAGIC)) {
