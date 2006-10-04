@@ -190,6 +190,21 @@ uname -r | grep BOOT ||
 /sbin/depmod -a -F /boot/System.map-%{kernelversion} %{kernelversion} >/dev/null 2>&1 || true
 
 %changelog
+* Wed Oct  4 2006 11:55:01 +0200 Lars Ellenberg <lars@linbit.com>
+- drbd (0.7.22-1)
+ * *** anyone using protocol A or B should upgrade! ***
+   while rewriting the request code for drbd8,
+   we noticed that in protocol A and B, on connection loss,
+   we could "forget" to set certain areas out of sync.
+   so resync in those protocol has been broken all along!
+ * fix races between failure in drbd_send_dblock
+   and concurrently running tl_clear
+ * fix potential access-afer-free in drbd_dio_end
+ * fix possible list corruption
+   respective resulting deadlock in receive_DataRequest
+ * improved the drbd_thread_stop / start code
+ * gracefull removal of devfs and other updates...
+
 * Tue Aug  1 2006 16:34:22 +0200 Philipp Reisner <phil@linbit.com>
 - drbd (0.7.21-1)
  * Fixed the "syncer stalled" after reconnect symptom.
