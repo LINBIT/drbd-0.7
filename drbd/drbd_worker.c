@@ -149,7 +149,7 @@ void drbd_dio_end(struct buffer_head *bh, int uptodate)
 
 	drbd_chk_io_error(mdev,!uptodate);
         // req may get freed within drbd_end_req
-	rsector = drbd_req_get_sector(req);
+	rsector = req->sector;
 	drbd_end_req(req, RQ_DRBD_LOCAL, uptodate, rsector);
 	drbd_al_complete_io(mdev,rsector);
 	dec_local(mdev);
