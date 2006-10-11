@@ -243,8 +243,9 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 	// down_read(mdev->device_lock);
 
 	wait_event( mdev->cstate_wait,
-		    (volatile int)(mdev->cstate < WFBitMapS || 
-				   mdev->cstate > WFBitMapT) );
+		    ((volatile int)mdev->cstate < WFBitMapS || 
+		     (volatile int) mdev->cstate > WFBitMapT) &&
+		    !(rw == WRITE && test_bit(IO_FROZEN, &mdev->flags)));
 
 	local = inc_local(mdev);
 	NOT_IN_26( if (rw == READA) rw=READ );

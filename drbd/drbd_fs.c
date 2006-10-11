@@ -1293,8 +1293,7 @@ ONLY_IN_26(
 			err=-ENODATA;
 			break;
 		}
-		/* FIXME what if fsync returns error */
-		drbd_sync_me(mdev);
+
 		set_bit(DO_NOT_INC_CONCNT,&mdev->flags);
 		set_cstate(mdev,Unconnected);
 		drbd_thread_stop(&mdev->receiver);

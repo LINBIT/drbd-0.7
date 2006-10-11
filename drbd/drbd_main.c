@@ -214,7 +214,7 @@ STATIC void tl_add(drbd_dev *mdev, drbd_request_t * new_item)
 
 	new_item->barrier = b;
 	new_item->rq_status |= RQ_DRBD_IN_TL;
-	list_add(&new_item->w.list,&b->requests);
+	list_add_tail(&new_item->w.list,&b->requests);
 
 	if( b->n_req++ > mdev->conf.max_epoch_size ) {
 		set_bit(ISSUE_BARRIER,&mdev->flags);
@@ -282,9 +282,44 @@ void tl_release(drbd_dev *mdev,unsigned int barrier_nr,
 	D_ASSERT(b->br_number == barrier_nr);
 	D_ASSERT(b->n_req == set_size);
 
+#if 1
+        if(b->br_number != barrier_nr) {
+                DUMPI(b->br_number);
+                DUMPI(barrier_nr);
+        }
+        if(b->n_req != set_size) {
+                DUMPI(b->n_req);
+                DUMPI(set_size);
+        }
+#endif
+
 	list_del(&b->requests);
 	kfree(b);
 }
+
+/* Since IO is frozen, nobody may modifiy the Transfer right log now...
+ */
+void tl_resend(drbd_dev *mdev)
+{
+	struct drbd_request *req;
+	struct list_head *le;
+	struct drbd_barrier *b;
+
+	D_ASSERT(test_bit(IO_FROZEN,&mdev->flags));
+
+	b = mdev->oldest_barrier;
+	while(1) {
+		list_for_each(le, &b->requests) {
+			req = list_entry(le, struct drbd_request,w.list);
+			drbd_resend_dblock(mdev,req);
+		}
+		if( b == mdev->newest_barrier ) break;
+		drbd_resend_barrier(mdev,b);
+		b = b->next;
+	}
+	D_ASSERT(test_bit(IO_FROZEN,&mdev->flags));
+}
+
 
 void tl_clear(drbd_dev *mdev)
 {
@@ -454,6 +489,19 @@ void _set_cstate(drbd_dev* mdev,Drbd_CState ns)
 	   test_bit(DISKLESS,&mdev->flags) && ns < Connected) {
 // FIXME EXPLAIN
 		clear_bit(MD_IO_ALLOWED,&mdev->flags);
+	}
+
+	if(mdev->conf.on_disconnect == FreezeIO && mdev->state == Primary) {
+		if(os >= Connected && ns < Connected) {
+			set_bit(IO_FROZEN, &mdev->flags);
+		}
+	}
+
+	if( ns <= StandAlone && test_bit(IO_FROZEN, &mdev->flags)) {
+		WARN("Going to thaw IO, setting out of sync %d requests.\n",
+		     atomic_read(&mdev->ap_pending_cnt));
+		tl_clear(mdev);
+		clear_bit(IO_FROZEN, &mdev->flags);
 	}
 }
 
@@ -803,6 +851,17 @@ int _drbd_send_barrier(drbd_dev *mdev)
 	return ok;
 }
 
+int drbd_resend_barrier(drbd_dev *mdev,struct drbd_barrier *b)
+{
+	int ok;
+	Drbd_Barrier_Packet p;
+
+	p.barrier=b->br_number;
+	ok=drbd_send_cmd(mdev,USE_DATA_SOCKET, Barrier,(Drbd_Header*)&p,sizeof(p));
+
+	return ok;
+}
+
 int drbd_send_b_ack(drbd_dev *mdev, u32 barrier_nr,u32 set_size)
 {
 	int ok;
@@ -1097,6 +1156,39 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 	restore_old_sigset(old_blocked);
 	return ok;
 }
+
+int drbd_resend_dblock(drbd_dev *mdev, drbd_request_t *req)
+{
+	int ok;
+	Drbd_Data_Packet p;
+
+	p.head.magic   = BE_DRBD_MAGIC;
+	p.head.command = cpu_to_be16(Data);
+	p.head.length  = cpu_to_be16(sizeof(p)-sizeof(Drbd_Header)+req->size);
+
+	p.sector   = cpu_to_be64(req->sector);
+	p.block_id = (unsigned long)req;
+
+	down(&mdev->data.mutex);
+
+	spin_lock(&mdev->send_task_lock);
+	mdev->send_task=current;
+	spin_unlock(&mdev->send_task_lock);
+
+	dump_packet(mdev,mdev->data.socket,0,(void*)&p, __FILE__, __LINE__);
+	ok = sizeof(p) == drbd_send(mdev,mdev->data.socket,&p,sizeof(p),MSG_MORE);
+	if(ok) {
+		ok = _drbd_send_bio(mdev,req->master_bio);
+	}
+
+	spin_lock(&mdev->send_task_lock);
+	mdev->send_task=NULL;
+	spin_unlock(&mdev->send_task_lock);
+
+	up(&mdev->data.mutex);
+	return ok;
+}
+
 
 int drbd_send_block(drbd_dev *mdev, Drbd_Packet_Cmd cmd,
 		    struct Tl_epoch_entry *e)

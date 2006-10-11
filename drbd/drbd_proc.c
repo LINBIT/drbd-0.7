@@ -254,7 +254,7 @@ STATIC int drbd_seq_show(struct seq_file *seq, void *v)
 			seq_printf( seq, "%2d: cs:Unconfigured\n", i);
 		else
 			seq_printf( seq,
-			   "%2d: cs:%s st:%s/%s ld:%s\n"
+			   "%2d: cs:%s st:%s/%s ld:%s %c\n"
 			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
 			   "lo:%d pe:%d ua:%d ap:%d\n",
 			   i, sn,
@@ -262,7 +262,7 @@ STATIC int drbd_seq_show(struct seq_file *seq, void *v)
 			   nodestate_to_name(drbd_conf[i].o_state),
 			   (drbd_conf[i].gen_cnt[Flags]
 			    & MDF_Consistent) ? "Consistent" : "Inconsistent",
-			// FIXME partner consistent?
+			   test_bit(IO_FROZEN, &drbd_conf[i].flags)? 'F' : ' ',
 			   drbd_conf[i].send_cnt/2,
 			   drbd_conf[i].recv_cnt/2,
 			   drbd_conf[i].writ_cnt/2,

@@ -625,7 +625,7 @@ static inline int _drbd_send_zc_bio(drbd_dev *mdev, struct bio *bio)
 
 static inline int _drbd_send_bio(drbd_dev *mdev, struct bio *bio)
 {
-	struct bio_vec *bvec = bio_iovec(bio);
+	struct bio_vec *bvec = bio_iovec_idx(bio,0);
 	struct page *page = bvec->bv_page;
 	size_t size = bvec->bv_len;
 	int offset = bvec->bv_offset;

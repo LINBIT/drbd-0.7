@@ -1583,6 +1583,16 @@ STATIC int receive_param(drbd_dev *mdev, Drbd_Header *h)
 
 	if (mdev->cstate == WFReportParams) {
 		INFO("Connection established.\n");
+
+		if(test_bit(IO_FROZEN, &mdev->flags)) {
+			WARN("Going to thaw IO, resuming %d requests.\n",
+			     atomic_read(&mdev->ap_pending_cnt));
+			tl_resend(mdev);
+			if (mdev->cstate == WFReportParams) {
+				clear_bit(IO_FROZEN, &mdev->flags);
+				consider_sync = 0; 
+			} else return FALSE;
+		}
 	}
 
 	if (consider_sync) {
@@ -1869,11 +1879,20 @@ STATIC void drbd_disconnect(drbd_dev *mdev)
 	drbd_wait_ee(mdev,&mdev->sync_ee);
 	drbd_clear_done_ee(mdev);
 
-	// primary
-	tl_clear(mdev);
-	clear_bit(ISSUE_BARRIER,&mdev->flags);
-	wait_event( mdev->cstate_wait, atomic_read(&mdev->ap_pending_cnt)==0 );
-	D_ASSERT(mdev->oldest_barrier->n_req == 0);
+	if(test_bit(IO_FROZEN, &mdev->flags)) {
+		WARN("IO frozen with ap_pending_cnt = %d\n",
+		     atomic_read(&mdev->ap_pending_cnt));
+	} else {
+		tl_clear(mdev);
+		clear_bit(ISSUE_BARRIER,&mdev->flags);
+		wait_event( mdev->cstate_wait, atomic_read(&mdev->ap_pending_cnt)==0 );
+		D_ASSERT(mdev->oldest_barrier->n_req == 0);
+
+		if(atomic_read(&mdev->ap_pending_cnt)) {
+			ERR("ap_pending_cnt = %d\n",atomic_read(&mdev->ap_pending_cnt));
+			atomic_set(&mdev->ap_pending_cnt,0);
+		}
+	}
 
 	// both
 	clear_bit(PARTNER_CONSISTENT, &mdev->flags);
@@ -1904,11 +1923,6 @@ STATIC void drbd_disconnect(drbd_dev *mdev)
            the disk-IO, while the rs_pending_cnt only tracks the blocks 
 	   on the fly. */
 	atomic_set(&mdev->rs_pending_cnt,0);
-
-	if(atomic_read(&mdev->ap_pending_cnt)) {
-		ERR("ap_pending_cnt = %d\n",atomic_read(&mdev->ap_pending_cnt));
-		atomic_set(&mdev->ap_pending_cnt,0);
-	}
 
 	wake_up(&mdev->cstate_wait);
 

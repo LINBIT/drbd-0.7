@@ -690,7 +690,8 @@ enum {
 	MD_DIRTY,		// current gen counts and flags not yet on disk
 	SYNC_STARTED,		// Needed to agree on the exact point in time..
 	USE_DEGR_WFC_T,		// Use degr-wfc-timeout instad of wfc-timeout.
-	CRASHED_PRIMARY         // This node was a crashed primary
+	CRASHED_PRIMARY,        // This node was a crashed primary
+	IO_FROZEN               // IO Frozen.
 };
 
 struct drbd_bitmap; // opaque for Drbd_Conf
@@ -832,6 +833,7 @@ extern void drbd_free_resources(drbd_dev *mdev);
 extern void tl_release(drbd_dev *mdev,unsigned int barrier_nr,
 		       unsigned int set_size);
 extern void tl_clear(drbd_dev *mdev);
+extern void tl_resend(drbd_dev *mdev);
 extern int tl_dependence(drbd_dev *mdev, drbd_request_t * item, int free_it);
 extern void drbd_free_sock(drbd_dev *mdev);
 extern int drbd_send(drbd_dev *mdev, struct socket *sock,
@@ -862,6 +864,9 @@ extern int _drbd_send_bitmap(drbd_dev *mdev);
 extern void drbd_free_ll_dev(drbd_dev *mdev);
 extern int drbd_io_error(drbd_dev* mdev);
 extern void drbd_mdev_cleanup(drbd_dev *mdev);
+
+extern int drbd_resend_barrier(drbd_dev *mdev,struct drbd_barrier *b);
+extern int drbd_resend_dblock(drbd_dev *mdev, drbd_request_t *req);
 
 // drbd_meta-data.c (still in drbd_main.c)
 extern void drbd_md_write(drbd_dev *mdev);
