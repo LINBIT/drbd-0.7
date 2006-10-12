@@ -1,6 +1,9 @@
 CFLAGS=-Wall
 
-all: dm
+all: dm io-latency-test
+
+io-latency-test: io-latency-test.c
+	$(CC) -pthread -o $@ $^
 
 install:
 

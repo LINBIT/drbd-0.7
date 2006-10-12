@@ -304,15 +304,19 @@ void tl_resend(drbd_dev *mdev)
 	struct drbd_request *req;
 	struct list_head *le;
 	struct drbd_barrier *b;
+	int n_req;
 
 	D_ASSERT(test_bit(IO_FROZEN,&mdev->flags));
 
 	b = mdev->oldest_barrier;
 	while(1) {
+		n_req=0;
 		list_for_each(le, &b->requests) {
 			req = list_entry(le, struct drbd_request,w.list);
 			drbd_resend_dblock(mdev,req);
+			n_req++;
 		}
+		b->n_req = n_req; // only necessary for the oldest...
 		if( b == mdev->newest_barrier ) break;
 		drbd_resend_barrier(mdev,b);
 		b = b->next;

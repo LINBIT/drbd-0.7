@@ -1588,6 +1588,7 @@ STATIC int receive_param(drbd_dev *mdev, Drbd_Header *h)
 			WARN("Going to thaw IO, resuming %d requests.\n",
 			     atomic_read(&mdev->ap_pending_cnt));
 			tl_resend(mdev);
+			set_bit(ISSUE_BARRIER,&mdev->flags);
 			if (mdev->cstate == WFReportParams) {
 				clear_bit(IO_FROZEN, &mdev->flags);
 				consider_sync = 0; 
