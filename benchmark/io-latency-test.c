@@ -74,6 +74,7 @@ void* wd_thread(void *arg)
 				       last_record_nr);
 				io_state = IO_BLOCKED;
 			} else {
+				if(wr==0) wr=1;
 				avg_write = wd/wr;
 
 				printf("Current record: %lu "
@@ -130,9 +131,9 @@ int main(int argc, char** argv)
 	       );
 
 	pthread_mutex_init(&data.mutex,NULL);
+	data.record_nr = record_nr;
 	data.write_duration_us = 0;
 	data.write_duration_records = 1;
-
 	pthread_create(&watch_dog,NULL,wd_thread,&data);
 
 	for(;;record_nr++) {
