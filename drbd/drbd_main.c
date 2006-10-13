@@ -1114,15 +1114,31 @@ int drbd_send_dblock(drbd_dev *mdev, drbd_request_t *req)
 	 * in down(). we have to check that, to avoid a race with tl_clear
 	 * cleaning up before we can tl_add */
 	if (unlikely(!mdev->data.socket)) {
-		/* this req is not in the tl, tl_clear cannot find it.
-		 * we cannot just tl_add it here, either, because tl_clear
-		 * might be done already.  so we have to mark this request
-		 * "SENT" here, otherwise it won't ever complete.
-		 * FIXME won't work for freeze io.
-		 * FIXME if we are Diskless, we complete a WRITE
-		 * as successful here, that has never been written! */
-		drbd_set_out_of_sync(mdev, req->sector, req->size);
-		drbd_end_req(req,RQ_DRBD_SENT,1);
+                /* this req is not in the tl, tl_clear cannot find it.
+                 *
+                 * For Freeze-IO,
+                 * we add the req to the tl anyways, possibly creating
+                 * a new epoch, and then do nothing.  It will then still be
+                 * submitted locally, but it cannot possibly signal
+                 * completion to the upper layers before it was
+                 * resent (tl_resend) or canceled (tl_clear).
+                 *
+                 * Otherwise,
+                 * we cannot just tl_add it here, either, because tl_clear
+                 * might be done already.  so we have to mark this request
+                 * "SENT" here, otherwise it won't ever complete.
+                 * FIXME if we are Diskless, we complete a WRITE
+                 * as successful here, that has never been written! */
+		if (test_bit(IO_FROZEN,&mdev->flags)) {
+			if(test_and_clear_bit(ISSUE_BARRIER,&mdev->flags)) {
+				inc_ap_pending(mdev);
+				tl_add_barrier(mdev);
+			}
+			tl_add(mdev,req);
+		} else {
+			drbd_set_out_of_sync(mdev, req->sector, req->size);
+			drbd_end_req(req,RQ_DRBD_SENT,1);
+		}
 		goto out;
 	}
 
