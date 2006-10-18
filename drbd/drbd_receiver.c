@@ -2304,6 +2304,7 @@ int drbd_asender(struct Drbd_thread *thi)
 	int received = 0;
 	int expect   = sizeof(Drbd_Header);
 	int cmd      = -1;
+	int empty;
 
 	static struct asender_cmd asender_tbl[] = {
 		[Ping]      ={ sizeof(Drbd_Header),           got_Ping },
@@ -2330,17 +2331,19 @@ int drbd_asender(struct Drbd_thread *thi)
 				mdev->conf.timeout*HZ/20;
 		}
 
-		/* FIXME this *should* be below drbd_process_ee,
-		 * but that leads to some distributed deadlock :-(
-		 * this needs to be fixed properly, I'd vote for a separate
-		 * msock sender thread, but others will frown upon yet an other
-		 * kernel thread...
-		 *	-- lge
-		 */
-		set_bit(SIGNAL_ASENDER, &mdev->flags);
-
-		if (!drbd_process_ee(mdev,0)) goto err;
-
+		while(1) {
+			if (!drbd_process_ee(mdev,0)) {
+				ERR("process_done_ee() = NOT_OK\n");
+				goto err;
+			}
+			set_bit(SIGNAL_ASENDER, &mdev->flags);
+			spin_lock_irq(&mdev->req_lock);
+			empty = list_empty(&mdev->done_ee);
+			spin_unlock_irq(&mdev->req_lock);
+			if(empty) break;
+			clear_bit(SIGNAL_ASENDER, &mdev->flags);
+			flush_signals(current);
+		}
 		rv = drbd_recv_short(mdev,buf,expect-received);
 		clear_bit(SIGNAL_ASENDER, &mdev->flags);
 

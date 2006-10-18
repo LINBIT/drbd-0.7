@@ -286,6 +286,8 @@ int drbd_dio_end(struct bio *bio, unsigned int bytes_done, int error)
 	ERR_IF (bio->bi_size)
 		return 1;
 
+	if(error) DUMPI(error);
+
 	drbd_chk_io_error(mdev,error);
         // req may get freed within drbd_end_req
 	rsector = req->sector;

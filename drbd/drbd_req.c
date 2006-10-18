@@ -168,6 +168,13 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 	drbd_request_t *req;
 	int local, remote;
 
+ONLY_IN_26(
+	/* Currently our BARRIER code is disabled. */
+	if(unlikely(bio_barrier(bio))) {
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
+)
 	if (unlikely(drbd_did_panic == DRBD_MAGIC)) {
 		drbd_bio_IO_error(bio);
 		return 0;
