@@ -22,10 +22,20 @@ test -e ./linux/drbd_config.h || {
 
 test -n "$KDIR"
 KDIR=${KDIR%/}
+if test -z "$O"; then
+	O=$KDIR;
+else
+	O=${O%/}
+fi
 
-ls >/dev/null \
-$KDIR/{.config,Makefile,include/{linux/{version,sched,list,fs},asm/bitops}.h}
-
+# some paranoia: check that all files are where we expect them
+ls > /dev/null \
+$KDIR/{Makefile,include/linux/{sched,list,fs}.h}
+ls > /dev/null \
+$O/{.config,Makefile,include/linux/version.h}
+test -e $KDIR/include/asm/bitops.h ||
+test -e $O/include2/asm/bitops.h   ||
+exit 1
 
 if grep_q "^PATCHLEVEL *= *4" $KDIR/Makefile ; then
   # do we have the threadding stuff in the kernel,
