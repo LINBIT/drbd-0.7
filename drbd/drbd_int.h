@@ -802,6 +802,8 @@ struct Drbd_Conf {
 	struct list_head done_ee;   // send ack
 	struct list_head read_ee;   // IO in progress
 	struct list_head net_ee;    // zero-copy network send in progress
+	drbd_bio_t *first_frozen_bio;
+	drbd_bio_t *last_frozen_bio;
 	spinlock_t pr_lock;
 	struct list_head app_reads;
 	struct list_head resync_reads;
@@ -1040,6 +1042,7 @@ extern int drbd_make_request_26(request_queue_t *q, struct bio *bio);
 #endif
 extern int drbd_read_remote(drbd_dev *mdev, drbd_request_t *req);
 
+extern void drbd_thaw_frozen_reqs(drbd_dev *mdev);
 // drbd_fs.c
 extern char* ppsize(char* buf, size_t size);
 extern int drbd_determin_dev_size(drbd_dev*);

@@ -810,7 +810,7 @@ int drbd_connect(drbd_dev *mdev)
 
 	drbd_thread_start(&mdev->asender);
 
-	drbd_send_param(mdev,0);
+	drbd_send_param(mdev,test_bit(IO_FROZEN, &mdev->flags) ? 4 : 0);
 	clear_bit(USE_DEGR_WFC_T,&mdev->flags);
 
 	return 1;
@@ -1528,6 +1528,8 @@ STATIC int receive_param(drbd_dev *mdev, Drbd_Header *h)
 	}
 	if(be32_to_cpu(p->flags)&2) consider_sync=1;
 
+	if(be32_to_cpu(p->flags)&4) consider_sync=0;
+
 	// XXX harmless race with ioctl ...
 	mdev->sync_conf.rate  =
 		max_t(int,mdev->sync_conf.rate, be32_to_cpu(p->sync_rate));
@@ -1585,13 +1587,12 @@ STATIC int receive_param(drbd_dev *mdev, Drbd_Header *h)
 		INFO("Connection established.\n");
 
 		if(test_bit(IO_FROZEN, &mdev->flags)) {
-			WARN("Going to thaw IO, resuming %d requests.\n",
+			WARN("Going to thaw IO, resending %d requests.\n",
 			     atomic_read(&mdev->ap_pending_cnt));
 			tl_resend(mdev);
 			set_bit(ISSUE_BARRIER,&mdev->flags);
 			if (mdev->cstate == WFReportParams) {
-				clear_bit(IO_FROZEN, &mdev->flags);
-				consider_sync = 0; 
+				consider_sync = 0;
 			} else return FALSE;
 		}
 	}
@@ -1600,7 +1601,14 @@ STATIC int receive_param(drbd_dev *mdev, Drbd_Header *h)
 		if (!drbd_sync_handshake(mdev,p)) return FALSE;
 	}
 
-	if (mdev->cstate == WFReportParams) set_cstate(mdev,Connected);
+	if (mdev->cstate == WFReportParams) {
+		set_cstate(mdev,Connected);
+		if(test_bit(IO_FROZEN, &mdev->flags)) {
+			clear_bit(IO_FROZEN, &mdev->flags);
+			drbd_thaw_frozen_reqs(mdev);
+			consider_sync = 0;
+		}
+	}
 
 	oo_state = mdev->o_state;
 	mdev->o_state = be32_to_cpu(p->state);

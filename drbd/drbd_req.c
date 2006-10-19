@@ -167,19 +167,34 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 {
 	drbd_request_t *req;
 	int local, remote;
+	unsigned long flags;
 
-ONLY_IN_26(
+	ONLY_IN_26(
 	/* Currently our BARRIER code is disabled. */
 	if(unlikely(bio_barrier(bio))) {
 		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
 		return 0;
 	}
-)
+	)
 	if (unlikely(drbd_did_panic == DRBD_MAGIC)) {
 		drbd_bio_IO_error(bio);
 		return 0;
 	}
 
+	if( rw == WRITE && test_bit(IO_FROZEN, &mdev->flags)) {
+		bio->REQ_NEXT = NULL;
+
+		spin_lock_irqsave(&mdev->req_lock,flags);
+		if(mdev->last_frozen_bio == NULL) {
+			mdev->first_frozen_bio = bio;
+			mdev->last_frozen_bio = bio;
+		} else {
+			mdev->last_frozen_bio->REQ_NEXT = bio;
+			mdev->last_frozen_bio = bio;
+		}
+		spin_unlock_irqrestore(&mdev->req_lock,flags);
+		return 0;
+	}
 	/*
 	 * If someone tries to mount on Secondary, and this is a 2.4 kernel,
 	 * it would lead to a readonly mounted, but not cache-coherent,
@@ -250,9 +265,8 @@ ONLY_IN_26(
 	// down_read(mdev->device_lock);
 
 	wait_event( mdev->cstate_wait,
-		    ((volatile int)mdev->cstate < WFBitMapS || 
-		     (volatile int) mdev->cstate > WFBitMapT) &&
-		    !(rw == WRITE && test_bit(IO_FROZEN, &mdev->flags)));
+		    (volatile int)mdev->cstate < WFBitMapS ||
+		    (volatile int) mdev->cstate > WFBitMapT);
 
 	local = inc_local(mdev);
 	NOT_IN_26( if (rw == READA) rw=READ );
@@ -419,3 +433,27 @@ int drbd_make_request_26(request_queue_t *q, struct bio *bio)
 					bio->bi_sector,bio);
 }
 #endif
+
+void drbd_thaw_frozen_reqs(drbd_dev *mdev)
+{
+	drbd_bio_t *bio;
+	int reqs=0;
+
+	spin_lock_irq(&mdev->req_lock);
+	bio = mdev->first_frozen_bio;
+	mdev->first_frozen_bio = NULL;
+	mdev->last_frozen_bio = NULL;
+	spin_unlock_irq(&mdev->req_lock);
+	
+	while(bio) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+		drbd_make_request_common(mdev,WRITE,bio->b_size,bio->b_rsector,bio);
+#else
+		drbd_make_request_common(mdev,WRITE,bio->bi_size,bio->bi_sector,bio);
+#endif
+		bio = bio->REQ_NEXT;
+		reqs++;
+	}
+	WARN("Continued %d requests (which where issued after IO-freeze).\n",
+	     reqs);
+}

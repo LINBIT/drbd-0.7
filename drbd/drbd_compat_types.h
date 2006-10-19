@@ -8,6 +8,8 @@
 typedef struct buffer_head drbd_bio_t;
 typedef unsigned long sector_t;
 
+#define REQ_NEXT b_reqnext
+
 #define NOT_IN_26(x...)		x
 #define ONLY_IN_26(x...)
 
@@ -315,6 +317,8 @@ find_next_bit(void * addr, unsigned long size, unsigned long offset)
 #else // LINUX 2.6
 
 typedef struct bio drbd_bio_t;
+
+#define REQ_NEXT bi_next
 
 #define SIGHAND_HACK
 
