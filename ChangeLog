@@ -8,18 +8,18 @@ Latest:
 
 0.7.22 (api:79/proto:74)
 -----
- * *** anyone using protocol A or B should upgrade! ***
-   while rewriting the request code for drbd8,
+ * Fixed bugs in the implementation of protocol A and B.
    we noticed that in protocol A and B, on connection loss,
    we could "forget" to set certain areas out of sync.
    so resync in those protocol has been broken all along!
- * fix races between failure in drbd_send_dblock
+ * Fix races between failure in drbd_send_dblock
    and concurrently running tl_clear
- * fix potential access-afer-free in drbd_dio_end
- * fix possible list corruption
-   respective resulting deadlock in receive_DataRequest
- * improved the drbd_thread_stop / start code
- * gracefull removal of devfs and other updates...
+ * Fix potential access-afer-free in drbd_dio_end
+ * Fix possible list corruption respective resulting deadlock in 
+   receive_DataRequest
+ * Improved the drbd_thread_stop / start code
+ * Gracefull removal of devfs and other updates.
+ * Implemented the "freeze_io" option for "on-disconnect"
 
 0.7.21 (api:79/proto:74)
 -----

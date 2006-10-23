@@ -333,9 +333,11 @@
 	  <listitem>
 	    <para>
 	      When the connection to the peer is lost, DRBD can either
-	      go into stand alone mode, or try to reconnect to the peer.
-	      The keywords are: <option>stand_alone</option> and
-	      <option>reconnect</option>.
+	      go into stand alone mode, try to reconnect to the peer, or
+	      try to reconnect and freeze application IO while not
+	      not connected.
+	      The keywords are: <option>stand_alone</option>,
+	      <option>reconnect</option> or <option>freeze_io</option>
 	      The default handler is <option>reconnect</option>.
 	    </para>
 	  </listitem>

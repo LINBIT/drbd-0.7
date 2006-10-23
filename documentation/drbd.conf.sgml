@@ -456,10 +456,11 @@ The default is 0, which disables this feature.
 <varlistentry>
   <term><option>on-disconnect <replaceable>handler</replaceable></option></term>
   <listitem><para>
-  When the connection to the peer is lost, DRBD can either
-  go into stand alone mode, or try to reconnect to the peer.
-  Valid handler specifiers are <option>stand_alone</option> and
-  <option>reconnect</option>.
+  When the connection to the peer is lost, DRBD can either go into standd
+  alone mode, try to reconnect to the peer, or try to reconnect and freeze
+  application IO while not not connected.
+  Valid handler specifiers are <option>stand_alone</option>,
+  <option>reconnect</option> and <option>freeze_io</option>.
   The default handler is <option>reconnect</option>.
   </para>
   <para><option>stand_alone</option>: Do not reconnect, go into
