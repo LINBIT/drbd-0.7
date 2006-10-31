@@ -160,9 +160,6 @@ all tools doc .filelist: drbd/drbd_buildtag.c
 
 KDIR := $(shell echo /lib/modules/`uname -r`/build)
 KVER := $(shell KDIR=$(KDIR) O=$(O) scripts/get_uts_release.sh)
-ifeq ($(KVER),)
-$(error "could not determine uts_release")
-endif
 
 kernel-patch: drbd/drbd_buildtag.c
 	set -o errexit; \
@@ -173,6 +170,10 @@ kernel-patch: drbd/drbd_buildtag.c
 
 # maybe even dist/RPMS/$(ARCH) ?
 rpm: tgz
+	@if [ -z "$(KVER)" ]; then \
+		echo "Could not determine uts_release" ; \
+		false ; \
+	fi
 	mkdir -p dist/BUILD \
 	         dist/RPMS  \
 	         dist/SPECS \
