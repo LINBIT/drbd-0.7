@@ -11,7 +11,7 @@
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
-   dm is distributed in the hope that it will be useful,
+   io-latency-test is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
@@ -83,7 +83,8 @@ void* wd_thread(void *arg)
 		case IO_RUNNING:
 			if(current_record_nr == last_record_nr) {
 				printf("IO got frozen. Last completely "
-				       "written record: %lu\n",
+				       "written record: %lu"
+				       "                        \n",
 				       last_record_nr);
 				io_state = IO_BLOCKED;
 			} else {
@@ -211,9 +212,14 @@ int main(int argc, char** argv)
 			write_duration_us/1000,
 			(write_duration_us%1000)/10);
 		
-		fflush(record_f); // flush it from glibc to the kernel.
-		fdatasync(fileno(record_f)); // from buffer cache to disk.
-
+		if(fflush(record_f)) { // flush it from glibc to the kernel.
+			perror("fflush:");
+			return 10;
+		}
+		if(fdatasync(fileno(record_f))) { // from buffer cache to disk.
+			perror("fdatasync:");
+			return 10;
+		}
 		// eventually wait for full record_time
 		gettimeofday(&then_tv, NULL);
 		write_duration_us =
