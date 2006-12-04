@@ -158,6 +158,7 @@ tarball: check_all_committed distclean doc .filelist
 
 all tools doc .filelist: drbd/drbd_buildtag.c
 
+export KDIR KVER O
 KDIR := $(shell echo /lib/modules/`uname -r`/build)
 KVER := $(shell KDIR=$(KDIR) O=$(O) scripts/get_uts_release.sh)
 
@@ -168,7 +169,6 @@ kernel-patch: drbd/drbd_buildtag.c
 	test -e $$d && cp -fav --backup=numbered $$d $$d; \
 	bash scripts/patch-kernel $(KDIR) . > $$d
 
-# maybe even dist/RPMS/$(ARCH) ?
 rpm: tgz
 	@if [ -z "$(KVER)" ]; then \
 		echo "Could not determine uts_release" ; \
