@@ -1627,13 +1627,8 @@ void drbd_destroy_mempools(void)
 {
 	if (drbd_request_mempool)
 		mempool_destroy(drbd_request_mempool);
-	if (drbd_ee_cache && kmem_cache_destroy(drbd_ee_cache))
-		printk(KERN_ERR DEVICE_NAME
-		       ": kmem_cache_destroy(drbd_ee_cache) FAILED\n");
-	if (drbd_request_cache && kmem_cache_destroy(drbd_request_cache))
-		printk(KERN_ERR DEVICE_NAME
-		       ": kmem_cache_destroy(drbd_request_cache) FAILED\n");
-	// FIXME what can we do if we fail to destroy them?
+	if (drbd_ee_cache) kmem_cache_destroy(drbd_ee_cache);
+	if (drbd_request_cache) kmem_cache_destroy(drbd_request_cache);
 
 	drbd_request_mempool = NULL;
 	drbd_ee_cache        = NULL;
