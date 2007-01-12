@@ -188,6 +188,10 @@ uname -r | grep BOOT ||
 /sbin/depmod -a -F /boot/System.map-%{kernelversion} %{kernelversion} >/dev/null 2>&1 || true
 
 %changelog
+* Fri Jan 12 2007 13:21:28 +0200 Philipp Reisner <phil@linbit.com>
+- drbd (0.7.23-1)
+ * Made it to compile on 2.6.19.
+
 * Wed Oct  4 2006 11:55:01 +0200 Lars Ellenberg <lars@linbit.com>
 - drbd (0.7.22-1)
  * *** anyone using protocol A or B should upgrade! ***
