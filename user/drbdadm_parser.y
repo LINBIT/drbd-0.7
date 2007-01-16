@@ -476,9 +476,9 @@ sync_stmt:	  TK_SKIP_SYNC		   { $$=new_opt($1,0);  }
 		| TK_USE_CSUMS		   { $$=new_opt($1,0);  }
 		| TK_RATE	TK_INTEGER
 		{ range_check(R_RATE,$1,$2); $$=new_opt($1,$2); }
-		| TK_SYNC_GROUP TK_INTEGER { $$=new_opt($1,$2); }
+		| TK_SYNC_GROUP TK_INTEGER
 		{ range_check(R_GROUP,$1,$2); $$=new_opt($1,$2); }
-		| TK_AL_EXTENTS TK_INTEGER { $$=new_opt($1,$2); }
+		| TK_AL_EXTENTS TK_INTEGER
 		{ range_check(R_AL_EXTENTS,$1,$2); $$=new_opt($1,$2); }
 		;
 
