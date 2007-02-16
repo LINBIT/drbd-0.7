@@ -1220,13 +1220,17 @@ const char* guess_dev_name(const char* dir,int major,int minor)
   struct stat sb;
   static char dev_name[50];
 
+  if(major==0 && minor==0)
+    return NULL;
+
   device_dir=opendir(dir);
 
   if(!device_dir) goto err_out;
 
   while((dde=readdir(device_dir)))
     {
-      snprintf(dev_name,50,"%s/%s",dir,dde->d_name);
+      if(snprintf(dev_name,50,"%s/%s",dir,dde->d_name)>=50)
+	continue;
       if(stat(dev_name,&sb)) continue;
 
       if(S_ISBLK(sb.st_mode))
@@ -1244,7 +1248,8 @@ const char* guess_dev_name(const char* dir,int major,int minor)
 
   while((dde=readdir(device_dir)))
     {
-      snprintf(dev_name,50,"%s/%s",dir,dde->d_name);
+      if(snprintf(dev_name,50,"%s/%s",dir,dde->d_name)>=50)
+	continue;
       if(stat(dev_name,&sb)) continue;
 
       if(!strcmp(dde->d_name,".")) continue;
@@ -1257,11 +1262,8 @@ const char* guess_dev_name(const char* dir,int major,int minor)
 	{
 	  char subdir[50];
 
-	  if(snprintf(subdir,50,"%s/%s",dir,dde->d_name)==49)
-	    { /* recursion is too deep */
-	      strcpy(dev_name,"can not guess name");
-	      return dev_name;
-	    }
+	  if(snprintf(subdir,50,"%s/%s",dir,dde->d_name)>=50)
+	    continue;
 
 	  if(guess_dev_name(subdir,major,minor)) return dev_name;
 	}
