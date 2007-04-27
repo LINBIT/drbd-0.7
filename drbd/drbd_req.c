@@ -294,6 +294,8 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 				 * local io stack.
 				 */
 				local = 0;
+				bio_put(req->private_bio);
+				req->private_bio = NULL;
 				dec_local(mdev);
 			}
 		}
