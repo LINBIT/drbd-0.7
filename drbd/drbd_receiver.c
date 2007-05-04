@@ -2312,7 +2312,6 @@ int drbd_asender(struct Drbd_thread *thi)
 	int received = 0;
 	int expect   = sizeof(Drbd_Header);
 	int cmd      = -1;
-	int empty;
 
 	static struct asender_cmd asender_tbl[] = {
 		[Ping]      ={ sizeof(Drbd_Header),           got_Ping },
