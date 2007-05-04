@@ -314,7 +314,15 @@ find_next_bit(void * addr, unsigned long size, unsigned long offset)
 #define BUG_ON(condition) do { if (unlikely((condition)!=0)) BUG(); } while(0)
 #endif
 
+typedef kmem_cache_t drbd_kmem_cache_t;
+
 #else // LINUX 2.6
+
+#ifdef USE_KMEM_CACHE_S
+typedef struct kmem_cache_s drbd_kmem_cache_t;
+#else
+typedef struct kmem_cache drbd_kmem_cache_t;
+#endif
 
 typedef struct bio drbd_bio_t;
 

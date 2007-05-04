@@ -162,8 +162,8 @@ STATIC int *drbd_blocksizes;
 STATIC int *drbd_sizes;
 )
 struct Drbd_Conf *drbd_conf;
-kmem_cache_t *drbd_request_cache;
-kmem_cache_t *drbd_ee_cache;
+drbd_kmem_cache_t *drbd_request_cache;
+drbd_kmem_cache_t *drbd_ee_cache;
 mempool_t *drbd_request_mempool;
 
 STATIC struct block_device_operations drbd_ops = {

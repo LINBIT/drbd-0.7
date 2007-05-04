@@ -71,4 +71,9 @@ extern const char * drbd_buildtag(void);
 
 //#define NO_MORE_DEV_FS
 
+// 2.6.something has deprecated kmem_cache_t
+// some older still use it.
+// some have it defined as struct kmem_cache_s, some as struct kmem_cache
+//#define USE_KMEM_CACHE_S
+
 #endif

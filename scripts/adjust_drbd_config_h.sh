@@ -90,7 +90,8 @@ if grep_q "^PATCHLEVEL *= *4" $KDIR/Makefile ; then
   else
     have_mm_inline_h=0
   fi
-    no_more_dev_fs=0
+  no_more_dev_fs=0
+  have_kmem_cache_s=0
 else
     # 2.6. kernel. just leave it alone...
     need_sighand_hack=0
@@ -99,6 +100,12 @@ else
     have_find_next_bit=0
     have_mm_inline_h=0
     no_more_dev_fs=1
+    
+    if grep_q "typedef.*kmem_cache_s" $KDIR/include/linux/slab.h ; then
+      have_kmem_cache_s=1
+    else
+      have_kmem_cache_s=0
+    fi
 fi
 
 test -e ./linux/drbd_config.h.orig || cp ./linux/drbd_config.h{,.orig}
@@ -115,7 +122,9 @@ perl -pe "
  s{.*(#define HAVE_MM_INLINE_H.*)}
   { ( $have_mm_inline_h ? '' : '//' ) . \$1}e;
  s{.*(#define NO_MORE_DEV_FS.*)}
-  { ( $no_more_dev_fs ? '' : '//' ) . \$1}e;" \
+  { ( $no_more_dev_fs ? '' : '//' ) . \$1}e;
+ s{.*(#define USE_KMEM_CACHE_S.*)}
+  { ( $have_kmem_cache_s ? '' : '//' ) . \$1}e;" \
 	  < ./linux/drbd_config.h \
 	  > ./linux/drbd_config.h.new
 

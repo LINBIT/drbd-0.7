@@ -1028,8 +1028,8 @@ extern void drbd_bm_unlock    (drbd_dev *mdev);
 // drbd_main.c
 extern drbd_dev *drbd_conf;
 extern int minor_count;
-extern kmem_cache_t *drbd_request_cache;
-extern kmem_cache_t *drbd_ee_cache;
+extern drbd_kmem_cache_t *drbd_request_cache;
+extern drbd_kmem_cache_t *drbd_ee_cache;
 extern mempool_t *drbd_request_mempool;
 
 // drbd_req
