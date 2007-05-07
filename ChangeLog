@@ -6,6 +6,12 @@ Latest:
  Cumulative changes since last tarball.
  For even more detail, use "svn log" and "svn diff".
 
+0.7.24 (api:79/proto:74)
+-----
+ * Fixed leakage of bios in case we are diskless.
+ * A fix to the device name guessing code.
+ * Made it to compile on 2.6.21 and gcc-4.1 without warnings.
+
 0.7.23 (api:79/proto:74)
 -----
  * Made it to compile on 2.6.19.
