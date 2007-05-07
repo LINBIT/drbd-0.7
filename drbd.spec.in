@@ -188,6 +188,12 @@ uname -r | grep BOOT ||
 /sbin/depmod -a -F /boot/System.map-%{kernelversion} %{kernelversion} >/dev/null 2>&1 || true
 
 %changelog
+* Mon May  7 2007 14:32:04 +0200 Philipp Reisner <phil@linbit.com>
+- drbd (0.7.24-1)
+ * Fixed leakage of bios in case we are diskless.
+ * A fix to the device name guessing code.
+ * Made it to compile on 2.6.21 and gcc-4.1 without warnings.
+
 * Fri Jan 12 2007 13:21:28 +0200 Philipp Reisner <phil@linbit.com>
 - drbd (0.7.23-1)
  * Made it to compile on 2.6.19.
