@@ -69,7 +69,7 @@ extern const char * drbd_buildtag(void);
 // but more recent kernels define it in arch/um/include/mem.h
 #define HAVE_UML_TO_VIRT
 
-//#define NO_MORE_DEV_FS
+#define NO_MORE_DEV_FS
 
 // 2.6.something has deprecated kmem_cache_t
 // some older still use it.

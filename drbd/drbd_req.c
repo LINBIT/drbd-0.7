@@ -269,10 +269,12 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 		    (volatile int) mdev->cstate > WFBitMapT);
 
 	local = inc_local(mdev);
+	ONLY_IN_26(
 	if (!local) {
 		bio_put(req->private_bio); /* or we get a bio leak */
 		req->private_bio = NULL;
 	}
+	)
 	NOT_IN_26( if (rw == READA) rw=READ );
 	if (rw == READ || rw == READA) {
 		if (local) {
@@ -298,8 +300,10 @@ drbd_make_request_common(drbd_dev *mdev, int rw, int size,
 				 * local io stack.
 				 */
 				local = 0;
+				ONLY_IN_26(
 				bio_put(req->private_bio);
 				req->private_bio = NULL;
+				)
 				dec_local(mdev);
 			}
 		}
