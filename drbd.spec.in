@@ -188,6 +188,11 @@ uname -r | grep BOOT ||
 /sbin/depmod -a -F /boot/System.map-%{kernelversion} %{kernelversion} >/dev/null 2>&1 || true
 
 %changelog
+* Wed Oct 10 2007 16:44:40 +0200 Philipp Reisner <phil@linbit.com>
+- drbd (0.7.25-1)
+ * Made it to compile on Linux-2.4 again.
+ * Backported a fix to not deadlock on 2.6.22 and later.
+
 * Mon May  7 2007 14:32:04 +0200 Philipp Reisner <phil@linbit.com>
 - drbd (0.7.24-1)
  * Fixed leakage of bios in case we are diskless.
