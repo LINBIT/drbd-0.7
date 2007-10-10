@@ -114,10 +114,7 @@ drbd/drbd_buildtag.c:
 # update of .filelist is forced:
 .PHONY: .filelist
 .filelist:
-	@ svn info >/dev/null || { echo "you need a svn checkout to do this." ; false ; }
-	@find $$(svn st -v | sed '/^?/d;s/^.\{8\} \+[0-9]\+ \+[0-9]\+ [a-z]\+ *//;$(if $(PRESERVE_DEBIAN),,/^debian/d)' ) \
-	-maxdepth 0 \! -type d |\
-	sed 's#^#drbd-$(DIST_VERSION)/#' > .filelist
+	@git-ls-files | sed '$(if $(PRESERVE_DEBIAN),,/^debian/d);s#^#drbd-$(DIST_VERSION)/#' > .filelist
 	@[ -s .filelist ] # assert there is something in .filelist now
 	@find documentation -name "[^.]*.[58]" -o -name "*.html" | \
 	sed "s/^/drbd-$(DIST_VERSION)\//" >> .filelist           ;\
@@ -146,14 +143,13 @@ tgz: check_changelogs_up2date doc
 endif
 
 check_all_committed:
-	@$(if $(FORCE),-,)modified=`svn st -q`; 		\
+	@$(if $(FORCE),-,)modified=`git-ls-files -m -t`; 		\
 	if test -n "$$modified" ; then	\
 		echo "$$modified";	\
 	       	false;			\
 	fi
 
 prepare_release:
-	svn up
 	$(MAKE) tarball
 	$(MAKE) tarball PRESERVE_DEBIAN=1
 
