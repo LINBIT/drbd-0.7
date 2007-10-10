@@ -33,12 +33,12 @@ REL_VERSION := $(shell sed -ne '/REL_VERSION/{s/^[^"]*"\([^ "]*\).*/\1/;p;q;}' d
 ifdef FORCE
 #
 # NOTE to generate a tgz even if too lazy to update the changelogs,
-# or to forcefully include the svn-last-changed-date in the tgz name:
+# or to forcefully include the FIXME to be done: latest change date;
+# for now, include the git hash of the latest commit
+# in the tgz name:
 #   make distclean doc tgz FORCE=1
 #
-REL_VERSION := $(REL_VERSION)-$(shell LANG= svn info| \
-	sed -n -e 's/^Last Changed Date: \([0-9]*\)-\([0-9]*\)-\([0-9]*\).*/\1\2\3/p' \
-	)-$(shell svnversion .)
+REL_VERSION := $(REL_VERSION)-$(shell git-rev-parse HEAD)
 endif
 
 DIST_VERSION := $(subst -,_,$(REL_VERSION))
