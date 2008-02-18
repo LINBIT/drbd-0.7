@@ -1647,13 +1647,13 @@ int drbd_create_mempools(void)
 	// caches
 	drbd_request_cache = kmem_cache_create(
 		"drbd_req_cache", sizeof(drbd_request_t),
-		0, 0, NULL, NULL);
+		0, 0, NULL);
 	if (drbd_request_cache == NULL)
 		goto Enomem;
 
 	drbd_ee_cache = kmem_cache_create(
 		"drbd_ee_cache", sizeof(struct Tl_epoch_entry),
-		0, 0, NULL, NULL);
+		0, 0, NULL);
 	if (drbd_ee_cache == NULL)
 		goto Enomem;
 
@@ -1799,8 +1799,7 @@ NOT_IN_26(
 #endif
 #endif
 
-	if (unregister_blkdev(MAJOR_NR, DEVICE_NAME) != 0)
-		printk(KERN_ERR DEVICE_NAME": unregister of device failed\n");
+	drbd_unregister_blkdev(MAJOR_NR, DEVICE_NAME);
 
 	printk(KERN_INFO DEVICE_NAME": module cleanup done.\n");
 }

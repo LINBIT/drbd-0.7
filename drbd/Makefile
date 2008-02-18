@@ -41,7 +41,7 @@ ifneq ($(PATCHLEVEL),)
     $(error "won't compile with this kernel version")
   endif
 
-  override CFLAGS += -I$(DRBDSRC)
+  EXTRA_CFLAGS = -I$(DRBDSRC)
   # remember KERNELRELEASE for install target
   # .kernelversion can be included in Makefile as well as
   # sourced from shell

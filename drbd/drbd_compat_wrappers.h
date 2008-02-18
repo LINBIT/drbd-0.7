@@ -333,7 +333,6 @@ extern char* drbd_sec_holder;
 
 // bi_end_io handlers
 // int (bio_end_io_t) (struct bio *, unsigned int, int);
-extern int drbd_md_io_complete     (struct bio *bio, unsigned int bytes_done, int error);
 extern int enslaved_read_bi_end_io (struct bio *bio, unsigned int bytes_done, int error);
 extern int drbd_dio_end_sec        (struct bio *bio, unsigned int bytes_done, int error);
 extern int drbd_dio_end            (struct bio *bio, unsigned int bytes_done, int error);
@@ -369,6 +368,41 @@ static inline void drbd_set_blocksize(drbd_dev *mdev, int blksize)
 	}
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
+/* Before Linux-2.6.24 bie_endio() had the size of the bio as second argument.
+   See 6712ecf8f648118c3363c142196418f89a510b90 */
+#define bio_endio(B,E) bio_endio(B, (B)->bi_size, E)
+#define BIO_ENDIO_FN(name) int name(struct bio *bio, unsigned int bytes_done, int error)
+#define BIO_ENDIO_FN_START if (bio->bi_size) return 1
+#define BIO_ENDIO_FN_RETURN return 0
+#else
+#define BIO_ENDIO_FN(name) void name(struct bio *bio, int error)
+#define BIO_ENDIO_FN_START while(0) {}
+#define BIO_ENDIO_FN_RETURN return
+#endif
+
+// bi_end_io handlers
+extern BIO_ENDIO_FN(drbd_md_io_complete);
+extern BIO_ENDIO_FN(drbd_endio_read_sec);
+extern BIO_ENDIO_FN(drbd_endio_write_sec);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+/* Before 2.6.23 (with 20c2df83d25c6a95affe6157a4c9cac4cf5ffaac) kmem_cache_create had a
+   ctor and a dtor */
+#define kmem_cache_create(N,S,A,F,C) kmem_cache_create(N,S,A,F,C,NULL)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+static inline void drbd_unregister_blkdev(unsigned int major, const char *name)
+{
+        int ret = unregister_blkdev(major,name);
+        if (ret)
+                printk(KERN_ERR "drbd: unregister of device failed\n");
+}
+#else
+#define drbd_unregister_blkdev unregister_blkdev
+#endif
+
 static inline int drbd_sync_me(drbd_dev *mdev)
 {
 	return fsync_bdev(mdev->this_bdev);
@@ -378,12 +412,12 @@ static inline int drbd_sync_me(drbd_dev *mdev)
 
 static inline void drbd_bio_IO_error(struct bio *bio)
 {
-	bio_endio(bio,bio->bi_size,-EIO);
+	bio_endio(bio,-EIO);
 }
 
 static inline void drbd_bio_endio(struct bio *bio, int uptodate)
 {
-	bio_endio(bio,bio->bi_size,uptodate ? 0 : -EIO);
+	bio_endio(bio,uptodate ? 0 : -EIO);
 }
 
 static inline drbd_dev* drbd_req_get_mdev(struct drbd_request *req)

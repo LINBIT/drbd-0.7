@@ -195,7 +195,7 @@ void drbd_read_bi_end_io(struct buffer_head *bh, int uptodate)
 /* used for synchronous meta data and bitmap IO
  * submitted by drbd_md_sync_page_io()
  */
-int drbd_md_io_complete(struct bio *bio, unsigned int bytes_done, int error)
+BIO_ENDIO_FN(drbd_md_io_complete)
 {
 	if (bio->bi_size)
 		return 1;
@@ -323,7 +323,7 @@ int drbd_read_bi_end_io(struct bio *bio, unsigned int bytes_done, int error)
 		drbd_queue_work(mdev,&mdev->data.work,&req->w);
 	} else {
 	pass_on:
-		bio_endio(req->master_bio,req->master_bio->bi_size,error);
+		bio_endio(req->master_bio,error);
 		dec_ap_bio(mdev);
 
 		INVALIDATE_MAGIC(req);
